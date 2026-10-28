@@ -1,0 +1,31 @@
+{
+  "name": "codeatlas-analyzer",
+  "version": "1.0.0",
+  "description": "CodeAtlas Static Repository Analysis Engine",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "test": "node tests/analyzer.test.js && node tests/phase4b.test.js && node tests/phase5a.test.js && node tests/phase5a1.test.js && node tests/phase5a2.test.js && node tests/phase5b2.test.js",
+    "test:4a": "node tests/analyzer.test.js",
+    "test:4b": "node tests/phase4b.test.js",
+    "test:5a": "node tests/phase5a.test.js",
+    "test:5a1": "node tests/phase5a1.test.js",
+    "test:5a2": "node tests/phase5a2.test.js",
+    "test:5b2": "node tests/phase5b2.test.js"
+  },
+  "keywords": [
+    "codeatlas",
+    "analyzer",
+    "ast",
+    "static-analysis",
+    "documentation-drift"
+  ],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1"
+  }
+}

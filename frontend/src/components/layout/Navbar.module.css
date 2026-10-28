@@ -1,0 +1,75 @@
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background-color: var(--color-bg-secondary);
+  border-bottom: 1px solid var(--color-border);
+  backdrop-filter: blur(8px);
+}
+
+.nav {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 var(--spacing-xl);
+  height: 3.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-lg);
+}
+
+.wordmark {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  text-decoration: none;
+  color: var(--color-text-primary);
+  flex-shrink: 0;
+}
+
+.wordmark:hover {
+  text-decoration: none;
+  color: var(--color-text-primary);
+}
+
+.wordmarkIcon {
+  font-size: 1.3rem;
+  color: var(--color-accent);
+}
+
+.wordmarkText {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: -0.02em;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.userEmail {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.logoutError {
+  font-size: var(--font-size-xs);
+  color: var(--color-error);
+  max-width: 220px;
+}
+
+@media (max-width: 640px) {
+  .nav {
+    padding: 0 var(--spacing-md);
+  }
+  .userEmail {
+    display: none;
+  }
+}
+

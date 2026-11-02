@@ -21,8 +21,8 @@ import { PublicOnlyRoute } from './components/routing/PublicOnlyRoute.jsx';
 import { LandingPage } from './pages/LandingPage.jsx';
 import { LoginPage } from './pages/auth/LoginPage.jsx';
 import { DashboardPage } from './pages/DashboardPage.jsx';
+import { RepositoriesPage } from './pages/RepositoriesPage.jsx';
 import {
-  RepositoriesPage,
   RepositoryDetailPage,
   ScanDetailPage,
 } from './pages/PlaceholderPage.jsx';

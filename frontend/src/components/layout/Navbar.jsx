@@ -37,10 +37,23 @@ export function Navbar() {
   return (
     <header className={styles.header} role="banner">
       <nav className={styles.nav} aria-label="Main navigation">
-        <Link to="/" className={styles.wordmark} aria-label="CodeAtlas home">
-          <span className={styles.wordmarkIcon} aria-hidden="true">◈</span>
-          <span className={styles.wordmarkText}>CodeAtlas</span>
-        </Link>
+        <div className={styles.navBrand}>
+          <Link to="/" className={styles.wordmark} aria-label="CodeAtlas home">
+            <span className={styles.wordmarkIcon} aria-hidden="true">◈</span>
+            <span className={styles.wordmarkText}>CodeAtlas</span>
+          </Link>
+
+          {isAuthenticated && (
+            <div className={styles.navLinks}>
+              <Link to="/dashboard" className={styles.navLink}>
+                Dashboard
+              </Link>
+              <Link to="/repositories" className={styles.navLink}>
+                Repositories
+              </Link>
+            </div>
+          )}
+        </div>
 
         <div className={styles.actions}>
           {isAuthenticated && user ? (

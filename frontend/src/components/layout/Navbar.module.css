@@ -18,6 +18,12 @@
   gap: var(--spacing-lg);
 }
 
+.navBrand {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xl);
+}
+
 .wordmark {
   display: flex;
   align-items: center;
@@ -41,6 +47,28 @@
   font-size: var(--font-size-lg);
   font-weight: var(--font-weight-bold);
   letter-spacing: -0.02em;
+}
+
+.navLinks {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.navLink {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+  text-decoration: none;
+  padding: 0.35rem 0.65rem;
+  border-radius: var(--radius-sm);
+  transition: color var(--transition-fast), background-color var(--transition-fast);
+}
+
+.navLink:hover {
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-surface);
+  text-decoration: none;
 }
 
 .actions {

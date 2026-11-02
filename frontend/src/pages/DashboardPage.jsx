@@ -3,6 +3,7 @@
  * Shows authenticated user info. No fake data.
  */
 
+import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import styles from './DashboardPage.module.css';
 
@@ -21,11 +22,15 @@ export function DashboardPage() {
 
         <div className={styles.placeholder}>
           <span className={styles.placeholderIcon} aria-hidden="true">◈</span>
-          <h2 className={styles.placeholderTitle}>Dashboard coming in Phase 6B</h2>
+          <h2 className={styles.placeholderTitle}>Repository Intelligence</h2>
           <p className={styles.placeholderDesc}>
-            Repository listing, scan management, and analysis results will appear here.
-            Your session is active and authenticated.
+            Manage your imported public GitHub repositories or import new repositories for codebase intelligence.
           </p>
+          <div className={styles.actions}>
+            <Link to="/repositories" className={styles.actionButton}>
+              Go to Repositories &rarr;
+            </Link>
+          </div>
           <div className={styles.sessionInfo}>
             <p><span className={styles.label}>Email:</span> {user?.email}</p>
             {user?.role && (

@@ -5,14 +5,21 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   oxc: {
-    // Ensure JSX automatic runtime is used so 'React' does not need to be
-    // imported explicitly in source files.
+    // Vite 8 uses OXC for production builds. Configure JSX automatic runtime here
+    // so that production transforms inject react/jsx-runtime automatically.
     transform: {
       jsx: {
         runtime: 'automatic',
         importSource: 'react',
       },
     },
+  },
+  // Vitest uses esbuild for its own transform pipeline (independent of the OXC
+  // production build). This esbuild config makes JSX work in tests without
+  // requiring 'import React from "react"' in every file.
+  esbuild: {
+    jsx: 'automatic',
+    jsxImportSource: 'react',
   },
   test: {
     globals: true,

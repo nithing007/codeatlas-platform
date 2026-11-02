@@ -58,6 +58,31 @@
   line-height: var(--line-height-relaxed);
 }
 
+.actions {
+  display: flex;
+  justify-content: center;
+}
+
+.actionButton {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  background-color: var(--color-accent);
+  color: #ffffff;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  padding: 0.5rem 1.25rem;
+  border-radius: var(--radius-md);
+  text-decoration: none;
+  transition: background-color var(--transition-fast);
+}
+
+.actionButton:hover {
+  background-color: var(--color-accent-hover);
+  text-decoration: none;
+  color: #ffffff;
+}
+
 .sessionInfo {
   margin-top: var(--spacing-md);
   background-color: var(--color-bg-secondary);

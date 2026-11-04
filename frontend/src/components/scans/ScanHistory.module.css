@@ -1,0 +1,260 @@
+.history {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-xs);
+  padding: var(--spacing-sm);
+  background-color: var(--color-bg-base);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: var(--spacing-xs);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.title {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0;
+}
+
+.count {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+/* ── States: Loading, Empty, Error ───────────────────────────── */
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-lg) var(--spacing-md);
+}
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-md);
+  text-align: center;
+  gap: var(--spacing-xs);
+}
+
+.emptyMessage {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+.emptySubtext {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+.emptyAction {
+  margin-top: var(--spacing-xs);
+}
+
+.errorState {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-xs) 0;
+}
+
+.retryBtn {
+  align-self: flex-start;
+}
+
+/* ── Scan History List ───────────────────────────────────────── */
+
+.list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.item {
+  padding: var(--spacing-sm);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border-subtle);
+  background-color: var(--color-bg-surface);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  transition: border-color var(--transition-fast);
+}
+
+.item:hover {
+  border-color: var(--color-border);
+}
+
+.itemTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-xs);
+}
+
+.badgeGroup {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+/* ── Status Badges ───────────────────────────────────────────── */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.6875rem;
+  font-weight: var(--font-weight-semibold);
+  padding: 0.1rem 0.45rem;
+  border-radius: var(--radius-full);
+  text-transform: capitalize;
+  letter-spacing: 0.01em;
+  line-height: 1.2;
+}
+
+.badge--queued {
+  background-color: var(--color-bg-muted, #f7fafc);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+}
+
+.badge--running {
+  background-color: var(--color-accent-subtle);
+  color: var(--color-accent);
+  border: 1px solid var(--color-accent-border);
+}
+
+.badge--completed {
+  background-color: #c6f6d5;
+  color: #22543d;
+  border: 1px solid #9ae6b4;
+}
+
+.badge--failed {
+  background-color: #fed7d7;
+  color: #9b2c2c;
+  border: 1px solid #fc8181;
+}
+
+.time {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+/* ── Metadata Row ────────────────────────────────────────────── */
+
+.metaRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-sm);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+.metaItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.commitSha {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.75rem;
+  background-color: var(--color-bg-base);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 0.05rem 0.3rem;
+  color: var(--color-text-primary);
+}
+
+.branch {
+  color: var(--color-text-muted);
+}
+
+.duration {
+  color: var(--color-text-muted);
+}
+
+.findings {
+  color: var(--color-text-secondary);
+}
+
+.findingsHighlight {
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+/* ── Scan Error Message ──────────────────────────────────────── */
+
+.errorBox {
+  font-size: var(--font-size-xs);
+  color: var(--color-error, #c53030);
+  background-color: var(--color-error-subtle, #fff5f5);
+  border: 1px solid var(--color-error-border, #fc8181);
+  border-radius: var(--radius-sm);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  margin: 0;
+  line-height: var(--line-height-normal);
+  word-break: break-word;
+}
+
+/* ── Pagination ──────────────────────────────────────────────── */
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+  padding-top: var(--spacing-xs);
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.pageInfo {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.paginationActions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+
+/* View Results link (Phase 6C) */
+.viewResultsRow {
+  margin-top: var(--spacing-sm);
+}
+
+.viewResultsLink {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--color-accent);
+  text-decoration: none;
+  transition: opacity var(--transition-fast);
+}
+
+.viewResultsLink:hover {
+  opacity: 0.8;
+  text-decoration: underline;
+}

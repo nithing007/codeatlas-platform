@@ -1,0 +1,120 @@
+.container {
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border-subtle);
+  background-color: var(--color-bg-surface);
+  font-size: var(--font-size-sm);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+/* ── Status-specific container tints ─────────────────────────── */
+
+.container--queued {
+  border-color: var(--color-border-subtle);
+}
+
+.container--running {
+  border-color: var(--color-accent-border);
+  background-color: var(--color-accent-subtle);
+}
+
+.container--completed {
+  border-color: #22543d33;
+  background-color: #f0fff433;
+}
+
+.container--failed {
+  border-color: var(--color-error-border, #fc8181);
+  background-color: var(--color-error-subtle, #fff5f5);
+}
+
+/* ── Header row ───────────────────────────────────────────────── */
+
+.headerRow {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+/* ── Status badges ───────────────────────────────────────────── */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--radius-full);
+  text-transform: capitalize;
+  letter-spacing: 0.01em;
+}
+
+.badge--queued {
+  background-color: var(--color-bg-muted, #f7fafc);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+}
+
+.badge--running {
+  background-color: var(--color-accent-subtle);
+  color: var(--color-accent);
+  border: 1px solid var(--color-accent-border);
+}
+
+.badge--completed {
+  background-color: #c6f6d5;
+  color: #22543d;
+  border: 1px solid #9ae6b4;
+}
+
+.badge--failed {
+  background-color: #fed7d7;
+  color: #9b2c2c;
+  border: 1px solid #fc8181;
+}
+
+/* ── Timestamp ───────────────────────────────────────────────── */
+
+.timestamp {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  margin-left: auto;
+}
+
+/* ── Messages ────────────────────────────────────────────────── */
+
+.message {
+  color: var(--color-text-secondary);
+  margin: 0;
+  line-height: var(--line-height-normal);
+}
+
+.errorMessage {
+  color: var(--color-error, #c53030);
+  margin: 0;
+  line-height: var(--line-height-normal);
+}
+
+/* ── Completed results ───────────────────────────────────────── */
+
+.results {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-md);
+  color: var(--color-text-secondary);
+}
+
+.resultItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.resultItem strong {
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-semibold);
+}
+

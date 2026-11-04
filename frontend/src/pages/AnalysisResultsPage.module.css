@@ -1,0 +1,98 @@
+.page {
+  min-height: 100vh;
+  padding: var(--spacing-xl) var(--spacing-md);
+  background: var(--color-bg-primary);
+}
+
+.container {
+  max-width: 900px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xl);
+}
+
+/* Breadcrumb */
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  font-size: 0.8125rem;
+}
+
+.breadcrumbLink {
+  color: var(--color-accent);
+  text-decoration: none;
+  transition: opacity var(--transition-fast);
+}
+
+.breadcrumbLink:hover {
+  opacity: 0.8;
+  text-decoration: underline;
+}
+
+.breadcrumbSep {
+  color: var(--color-text-muted);
+}
+
+.breadcrumbCurrent {
+  color: var(--color-text-secondary);
+}
+
+/* Header */
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.subtitle {
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+.scanId {
+  font-family: 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+  color: var(--color-text-secondary);
+}
+
+/* States */
+.loadingState {
+  display: flex;
+  justify-content: center;
+  padding: var(--spacing-3xl) 0;
+}
+
+.errorState {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  align-items: flex-start;
+}
+
+.retryBtn {
+  margin-top: var(--spacing-xs);
+}
+
+/* Content */
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xl);
+}
+
+.section {
+  background: var(--color-bg-secondary);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-xl);
+}
+

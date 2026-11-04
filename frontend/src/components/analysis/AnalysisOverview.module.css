@@ -1,0 +1,86 @@
+.overview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xl);
+}
+
+.sectionTitle {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin: 0 0 var(--spacing-md) 0;
+  padding-bottom: var(--spacing-sm);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+/* Meta section */
+.metaSection {}
+
+.metaGrid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.metaRow {
+  display: flex;
+  align-items: baseline;
+  gap: var(--spacing-md);
+}
+
+.metaLabel {
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+  min-width: 90px;
+  flex-shrink: 0;
+}
+
+.metaValue {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+}
+
+.metaValueMono {
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+  font-family: 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+  background: rgba(79, 121, 232, 0.1);
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+}
+
+/* File counts */
+.fileSection {}
+
+.fileGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+  gap: var(--spacing-sm);
+}
+
+.fileCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-md);
+  background: var(--color-bg-surface);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: var(--radius-md);
+  text-align: center;
+}
+
+.fileCount {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-accent);
+  line-height: 1;
+}
+
+.fileLabel {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+

@@ -1,0 +1,94 @@
+.driftSummary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.sectionTitle {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin: 0;
+  padding-bottom: var(--spacing-sm);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.noFindings {
+  font-size: 0.875rem;
+  color: #22c55e;
+  margin: 0;
+}
+
+.findingsNote {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+.findingsCount {
+  color: var(--color-text-primary);
+  font-weight: 700;
+}
+
+.cardGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--spacing-sm);
+}
+
+@media (max-width: 480px) {
+  .cardGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-md);
+  border-radius: var(--radius-md);
+  border: 1px solid;
+  text-align: center;
+}
+
+.card--total {
+  background: rgba(79, 121, 232, 0.08);
+  border-color: rgba(79, 121, 232, 0.25);
+}
+
+.card--high {
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.25);
+}
+
+.card--medium {
+  background: rgba(234, 179, 8, 0.08);
+  border-color: rgba(234, 179, 8, 0.25);
+}
+
+.card--low {
+  background: rgba(100, 116, 139, 0.08);
+  border-color: rgba(100, 116, 139, 0.25);
+}
+
+.cardCount {
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.card--total .cardCount { color: var(--color-accent); }
+.card--high .cardCount  { color: #ef4444; }
+.card--medium .cardCount { color: #d4a200; }
+.card--low .cardCount   { color: var(--color-text-muted); }
+
+.cardLabel {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
+}
+

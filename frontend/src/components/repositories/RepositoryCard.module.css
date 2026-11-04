@@ -122,3 +122,20 @@
   font-size: var(--font-size-xs);
   color: var(--color-text-muted);
 }
+
+/* ── Scan section ───────────────────────────────────────────── */
+
+.scanSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  padding-top: var(--spacing-sm);
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.scanActions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+}

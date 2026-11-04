@@ -7,7 +7,7 @@
  *   /dashboard             — Protected
  *   /repositories          — Protected (Phase 6B)
  *   /repositories/:id      — Protected (Phase 6B)
- *   /repositories/:id/scans/:scanId — Protected (Phase 6C)
+ *   /repositories/:id/scans/:scanId/analysis — Protected (Phase 6C)
  *   *                      — 404
  */
 
@@ -22,10 +22,8 @@ import { LandingPage } from './pages/LandingPage.jsx';
 import { LoginPage } from './pages/auth/LoginPage.jsx';
 import { DashboardPage } from './pages/DashboardPage.jsx';
 import { RepositoriesPage } from './pages/RepositoriesPage.jsx';
-import {
-  RepositoryDetailPage,
-  ScanDetailPage,
-} from './pages/PlaceholderPage.jsx';
+import { RepositoryDetailPage } from './pages/PlaceholderPage.jsx';
+import { AnalysisResultsPage } from './pages/AnalysisResultsPage.jsx';
 import { NotFoundPage } from './pages/NotFoundPage.jsx';
 
 export default function App() {
@@ -74,10 +72,10 @@ export default function App() {
               }
             />
             <Route
-              path="/repositories/:repositoryId/scans/:scanId"
+              path="/repositories/:repositoryId/scans/:scanId/analysis"
               element={
                 <ProtectedRoute>
-                  <ScanDetailPage />
+                  <AnalysisResultsPage />
                 </ProtectedRoute>
               }
             />

@@ -3,11 +3,51 @@
  * Displays repository metadata returned by backend:
  * name, owner/fullName, description, GitHub URL, default branch,
  * language, visibility, stars, forks, and creation date.
+ *
+ * Also integrates scan execution, live scan status polling,
+ * and expandable scan history.
  */
 
+import { useState, useCallback } from 'react';
 import styles from './RepositoryCard.module.css';
+import { Button } from '../ui/Button.jsx';
+import { Alert } from '../ui/Alert.jsx';
+import { ScanStatus } from '../scans/ScanStatus.jsx';
+import { ScanHistory } from '../scans/ScanHistory.jsx';
+import { useScanPolling } from '../../hooks/useScanPolling.js';
+import { createScan } from '../../api/scans.js';
+import { ApiError } from '../../api/client.js';
 
 export function RepositoryCard({ repository }) {
+  // All hooks must be called unconditionally — before the early-return guard.
+  // useScanPolling handles undefined repositoryId gracefully.
+  const repositoryId = repository?._id;
+  const { scan, isPolling, pollingError, startPolling } = useScanPolling(repositoryId);
+  const [isStarting, setIsStarting] = useState(false);
+  const [createError, setCreateError] = useState(null);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+
+  const handleStartAnalysis = useCallback(async () => {
+    if (isStarting || isPolling) return;
+
+    setIsStarting(true);
+    setCreateError(null);
+
+    try {
+      const data = await createScan(repositoryId);
+      startPolling(data.scan._id, data.scan);
+    } catch (err) {
+      if (err instanceof ApiError && err.code === 'SCAN_ALREADY_IN_PROGRESS') {
+        setCreateError('A scan is already in progress for this repository.');
+      } else {
+        setCreateError(err.message || 'Failed to start analysis. Please try again.');
+      }
+    } finally {
+      setIsStarting(false);
+    }
+  }, [isStarting, isPolling, repositoryId, startPolling]);
+
+  // Early return AFTER all hooks
   if (!repository) return null;
 
   const {
@@ -30,6 +70,9 @@ export function RepositoryCard({ repository }) {
         day: 'numeric',
       })
     : null;
+
+  // Hide the Start Analysis button while a scan is actively running
+  const isActive = isPolling || scan?.status === 'QUEUED' || scan?.status === 'RUNNING';
 
   return (
     <article className={styles.card} aria-label={`Repository ${fullName || name}`}>
@@ -156,6 +199,55 @@ export function RepositoryCard({ repository }) {
           <span className={styles.footer}>
             Imported {formattedDate}
           </span>
+        )}
+      </div>
+
+      {/* ── Scan section ───────────────────────────────────────── */}
+      <div className={styles.scanSection}>
+        {createError && (
+          <Alert variant="error">{createError}</Alert>
+        )}
+
+        {pollingError && !createError && (
+          <Alert variant="warning">{pollingError}</Alert>
+        )}
+
+        {scan && <ScanStatus scan={scan} />}
+
+        <div className={styles.scanActions}>
+          {!isActive && (
+            <Button
+              variant="primary"
+              size="sm"
+              isLoading={isStarting}
+              onClick={handleStartAnalysis}
+              aria-label={`Start analysis for ${fullName || name}`}
+            >
+              Start Analysis
+            </Button>
+          )}
+
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setIsHistoryOpen((open) => !open)}
+            aria-expanded={isHistoryOpen}
+            aria-controls={`scan-history-${repositoryId}`}
+          >
+            {isHistoryOpen ? 'Hide History' : 'Scan History'}
+          </Button>
+        </div>
+
+        {isHistoryOpen && (
+          <div id={`scan-history-${repositoryId}`}>
+            <ScanHistory
+              key={repositoryId}
+              repositoryId={repositoryId}
+              activeScanStatus={scan?.status}
+              onStartAnalysis={handleStartAnalysis}
+              canStartAnalysis={!isActive}
+            />
+          </div>
         )}
       </div>
     </article>

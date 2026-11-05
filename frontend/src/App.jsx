@@ -79,6 +79,14 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
+            <Route
+              path="/repositories/:repositoryId/scans/:scanId/analysis/findings"
+              element={
+                <ProtectedRoute>
+                  <AnalysisResultsPage isFindingsView />
+                </ProtectedRoute>
+              }
+            />
 
             {/* 404 */}
             <Route path="*" element={<NotFoundPage />} />

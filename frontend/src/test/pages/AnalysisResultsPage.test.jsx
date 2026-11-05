@@ -41,6 +41,14 @@ vi.mock('../../components/analysis/DriftSummary.jsx', () => ({
   DriftSummary: () => <div data-testid="drift-summary" />,
 }));
 
+vi.mock('../../components/analysis/DriftFindingsExplorer.jsx', () => ({
+  DriftFindingsExplorer: ({ findings }) => (
+    <div data-testid="drift-findings-explorer">
+      {findings?.length ?? 0} findings
+    </div>
+  ),
+}));
+
 import { getScanAnalysis } from '../../api/analysis.js';
 
 const REPO_ID = 'repo-123';
@@ -183,6 +191,40 @@ describe('AnalysisResultsPage', () => {
       expect(screen.getByTestId('analysis-warnings')).toBeInTheDocument();
     });
     expect(screen.getByText('1 warnings')).toBeInTheDocument();
+  });
+
+  it('renders drift findings explorer in the dashboard view', async () => {
+    getScanAnalysis.mockResolvedValueOnce({ success: true, analysis: mockAnalysis });
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('drift-findings-explorer')).toBeInTheDocument();
+    });
+  });
+
+  it('renders dedicated findings view with extended breadcrumbs and back link', async () => {
+    getScanAnalysis.mockResolvedValueOnce({ success: true, analysis: mockAnalysis });
+    render(
+      <MemoryRouter initialEntries={[`/repositories/${REPO_ID}/scans/${SCAN_ID}/analysis/findings`]}>
+        <Routes>
+          <Route
+            path="/repositories/:repositoryId/scans/:scanId/analysis/findings"
+            element={<AnalysisResultsPage isFindingsView />}
+          />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: /drift findings/i })).toBeInTheDocument();
+    });
+
+    const breadcrumb = screen.getByRole('navigation', { name: /breadcrumb/i });
+    expect(breadcrumb).toHaveTextContent('Analysis Results');
+    expect(breadcrumb).toHaveTextContent('Drift Findings');
+
+    expect(screen.getByRole('link', { name: /back to overview/i })).toBeInTheDocument();
+    expect(screen.getByTestId('drift-findings-explorer')).toBeInTheDocument();
   });
 });
 

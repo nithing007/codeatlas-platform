@@ -29,6 +29,14 @@ function renderWithAuth(authValue, path = '/repositories/repo-1/scans/scan-1/ana
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/repositories/:repositoryId/scans/:scanId/analysis/findings"
+            element={
+              <ProtectedRoute>
+                <AnalysisResultsPage isFindingsView />
+              </ProtectedRoute>
+            }
+          />
           <Route path="/login" element={<div data-testid="login-page">Login</div>} />
         </Routes>
       </MemoryRouter>
@@ -42,8 +50,25 @@ describe('Analysis route protection', () => {
     expect(screen.getByTestId('analysis-page')).toBeInTheDocument();
   });
 
+  it('renders findings page for authenticated users', () => {
+    renderWithAuth(
+      { isAuthenticated: true, isLoading: false, user: { email: 'a@b.com' } },
+      '/repositories/repo-1/scans/scan-1/analysis/findings'
+    );
+    expect(screen.getByTestId('analysis-page')).toBeInTheDocument();
+  });
+
   it('redirects unauthenticated users to /login', () => {
     renderWithAuth({ isAuthenticated: false, isLoading: false });
+    expect(screen.getByTestId('login-page')).toBeInTheDocument();
+    expect(screen.queryByTestId('analysis-page')).not.toBeInTheDocument();
+  });
+
+  it('redirects unauthenticated users on findings route to /login', () => {
+    renderWithAuth(
+      { isAuthenticated: false, isLoading: false },
+      '/repositories/repo-1/scans/scan-1/analysis/findings'
+    );
     expect(screen.getByTestId('login-page')).toBeInTheDocument();
     expect(screen.queryByTestId('analysis-page')).not.toBeInTheDocument();
   });

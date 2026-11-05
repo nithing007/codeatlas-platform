@@ -18,7 +18,7 @@ function SeverityCard({ label, count, variant }) {
   );
 }
 
-export function DriftSummary({ drift }) {
+export function DriftSummary({ drift, onExploreFindings, exploreHref = '#drift-findings' }) {
   const summary = drift?.summary || {};
   const total = typeof summary.total === 'number' ? summary.total : 0;
   const high = typeof summary.high === 'number' ? summary.high : 0;
@@ -27,7 +27,23 @@ export function DriftSummary({ drift }) {
 
   return (
     <section className={styles.driftSummary} aria-label="Drift summary">
-      <h2 className={styles.sectionTitle}>Documentation Drift</h2>
+      <div className={styles.headerRow}>
+        <h2 className={styles.sectionTitle}>Documentation Drift</h2>
+        {total > 0 && onExploreFindings && (
+          <button
+            type="button"
+            onClick={onExploreFindings}
+            className={styles.exploreBtn}
+          >
+            Explore Findings →
+          </button>
+        )}
+        {total > 0 && !onExploreFindings && exploreHref && (
+          <a href={exploreHref} className={styles.exploreLink}>
+            Explore Findings ↓
+          </a>
+        )}
+      </div>
 
       {total === 0 ? (
         <p className={styles.noFindings}>No documentation drift detected. Documentation is in sync.</p>

@@ -6,7 +6,7 @@
 const mongoose = require('mongoose');
 const Scan = require('../models/Scan');
 const Repository = require('../models/Repository');
-const { resolveCommitSha } = require('./githubService');
+const githubService = require('./githubService');
 const scanExecutionService = require('./scanExecutionService');
 
 /**
@@ -55,18 +55,31 @@ const createScan = async (userId, repositoryId) => {
   // Resolve the exact current commit SHA for the repository's default branch.
   // This ensures the scan represents a deterministic snapshot.
   const branch = repository.defaultBranch || 'main';
-  const commitSha = await resolveCommitSha(repository.owner, repository.name, branch);
+  const commitSha = await githubService.resolveCommitSha(repository.owner, repository.name, branch);
 
   // Create scan with server-controlled lifecycle fields.
   // The client cannot supply: status, commitSha, startedAt, completedAt,
   // filesScanned, findingsCount, or error.
-  const scan = await Scan.create({
-    repositoryId: repository._id,
-    userId,
-    status:    'QUEUED',
-    branch,
-    commitSha,
-  });
+  const activeScanKey = repository._id.toString();
+  let scan;
+  try {
+    scan = await Scan.create({
+      repositoryId: repository._id,
+      userId,
+      status:    'QUEUED',
+      branch,
+      commitSha,
+      activeScanKey,
+    });
+  } catch (err) {
+    if (err.code === 11000) {
+      const error = new Error('A scan is already in progress for this repository.');
+      error.statusCode = 409;
+      error.code = 'SCAN_ALREADY_IN_PROGRESS';
+      throw error;
+    }
+    throw err;
+  }
 
   // Schedule async in-process execution.
   // setImmediate fires after the current event-loop tick so the HTTP response
@@ -171,8 +184,39 @@ const listScans = async (userId, repositoryId, queryOptions = {}) => {
   };
 };
 
+/**
+ * Reconciles stranded scans with status QUEUED or RUNNING on single-instance startup.
+ * Marks any interrupted scans as FAILED with a safe, user-readable error message.
+ *
+ * @returns {Promise<number>} Number of reconciled scans.
+ */
+const reconcileStrandedScans = async () => {
+  try {
+    const result = await Scan.updateMany(
+      { status: { $in: ['QUEUED', 'RUNNING'] } },
+      {
+        $set: {
+          status: 'FAILED',
+          completedAt: new Date(),
+          error: 'Scan was interrupted by server restart. Please trigger a new scan.',
+          activeScanKey: null,
+        },
+      }
+    );
+    const count = result.modifiedCount || 0;
+    if (count > 0) {
+      console.log(`[startup] Reconciled ${count} stranded scan(s) to FAILED.`);
+    }
+    return count;
+  } catch (err) {
+    console.error('[startup] Failed to reconcile stranded scans:', err.message);
+    throw err;
+  }
+};
+
 module.exports = {
   createScan,
   getScan,
   listScans,
+  reconcileStrandedScans,
 };

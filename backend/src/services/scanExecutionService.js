@@ -66,11 +66,35 @@ function mapFileCounts(statistics) {
  */
 function mapEnvVars(envVars) {
   if (!Array.isArray(envVars)) return [];
-  return envVars.map((ev) => ({
-    name: ev.name,
-    file: ev.file || null,
-    line: ev.line || null,
-  }));
+  return envVars.map((ev) => {
+    const filePath = (ev && (ev.file || ev.source)) ? String(ev.file || ev.source).trim() : null;
+    return {
+      name: ev.name,
+      file: filePath,
+      source: filePath,
+      line: typeof ev.line === 'number' ? ev.line : null,
+    };
+  });
+}
+
+/**
+ * Maps analyzer API endpoint facts to the AnalysisResult apiEndpoint sub-document schema.
+ *
+ * @param {Array} endpoints - Raw API endpoint facts from analyzer
+ * @returns {Array<{ method: string, path: string, file: string|null, source: string|null, line: number|null }>}
+ */
+function mapApiEndpoints(endpoints) {
+  if (!Array.isArray(endpoints)) return [];
+  return endpoints.map((ep) => {
+    const filePath = (ep && (ep.file || ep.source)) ? String(ep.file || ep.source).trim() : null;
+    return {
+      method: ep.method,
+      path: ep.path,
+      file: filePath,
+      source: filePath,
+      line: typeof ep.line === 'number' ? ep.line : null,
+    };
+  });
 }
 
 const SECTION_TO_TYPE = {
@@ -149,16 +173,80 @@ function mapFacts(facts) {
 
   return {
     code: {
-      apiEndpoints: Array.isArray(codeFacts.apiEndpoints) ? codeFacts.apiEndpoints : [],
+      apiEndpoints: mapApiEndpoints(codeFacts.apiEndpoints),
       envVars:      mapEnvVars(codeFacts.environmentVariables),
       dependencies: mapDependencies(codeFacts.dependencies),
       scripts:      mapScripts(codeFacts.scripts),
     },
     documentation: {
-      apiEndpoints: Array.isArray(docFacts.apiEndpoints) ? docFacts.apiEndpoints : [],
+      apiEndpoints: mapApiEndpoints(docFacts.apiEndpoints),
       envVars:      mapEnvVars(docFacts.environmentVariables),
     },
   };
+}
+
+/**
+ * Maps analyzer finding evidence to the AnalysisResult evidence sub-document schema.
+ * Preserves file paths, source attribution, line numbers, and context tags.
+ *
+ * @param {Object|null} evidence - Raw evidence object from analyzer finding
+ * @returns {Object|null} Mapped evidence conforming to schema
+ */
+function mapEvidence(evidence) {
+  if (!evidence || typeof evidence !== 'object') return null;
+
+  const filePath = (evidence.file || evidence.source)
+    ? String(evidence.file || evidence.source).trim()
+    : null;
+
+  return {
+    file: filePath,
+    source: filePath,
+    line: typeof evidence.line === 'number' ? evidence.line : null,
+    method: evidence.method || null,
+    path: evidence.path || null,
+    name: evidence.name || null,
+    prefixResolved: Boolean(evidence.prefixResolved),
+    fromTemplate: Boolean(evidence.fromTemplate),
+    fromOpenApi: Boolean(evidence.fromOpenApi),
+    fromCurl: Boolean(evidence.fromCurl),
+    fromTable: Boolean(evidence.fromTable),
+    fromDocumentation: Boolean(evidence.fromDocumentation),
+  };
+}
+
+/**
+ * Maps analyzer drift detection result to the AnalysisResult drift schema.
+ *
+ * @param {Object} drift - Raw drift object from analyzer
+ * @returns {Object} Mapped drift with summary and findings
+ */
+function mapDrift(drift) {
+  const defaultSummary = { total: 0, high: 0, medium: 0, low: 0 };
+  if (!drift || typeof drift !== 'object') {
+    return { summary: defaultSummary, findings: [] };
+  }
+
+  const rawSummary = drift.summary || {};
+  const summary = {
+    total:  typeof rawSummary.total === 'number'  ? rawSummary.total  : 0,
+    high:   typeof rawSummary.high === 'number'   ? rawSummary.high   : 0,
+    medium: typeof rawSummary.medium === 'number' ? rawSummary.medium : 0,
+    low:    typeof rawSummary.low === 'number'    ? rawSummary.low    : 0,
+  };
+
+  const rawFindings = Array.isArray(drift.findings) ? drift.findings : [];
+  const findings = rawFindings.map((finding) => ({
+    type:                  finding.type,
+    severity:              finding.severity,
+    title:                 finding.title,
+    message:               finding.message,
+    resource:              finding.resource || {},
+    codeEvidence:          mapEvidence(finding.codeEvidence),
+    documentationEvidence: mapEvidence(finding.documentationEvidence),
+  }));
+
+  return { summary, findings };
 }
 
 /**
@@ -201,13 +289,22 @@ function sanitizeErrorMessage(err) {
  * @param {string|object} scanId
  * @param {string} safeMessage
  */
-async function markFailed(scanId, safeMessage) {
+async function markFailed(scanId, safeMessage, workerId = null) {
   try {
-    await Scan.findByIdAndUpdate(scanId, {
+    const filter = { _id: scanId };
+    if (workerId) {
+      filter.status = 'RUNNING';
+      filter.lockedBy = workerId;
+    }
+
+    await Scan.findOneAndUpdate(filter, {
       $set: {
         status:      'FAILED',
         completedAt: new Date(),
-        error:       safeMessage,
+        error:         safeMessage,
+        activeScanKey: null,
+        lockedBy: null,
+        leaseExpiresAt: null,
       },
     });
   } catch (updateErr) {
@@ -229,20 +326,24 @@ async function markFailed(scanId, safeMessage) {
  * @param {string|object} scanId - ID of the Scan to execute.
  * @returns {Promise<void>}
  */
-const executeScan = async (scanId) => {
-  // ── Step 1: Atomically claim the scan (QUEUED → RUNNING) ──────────────────
-  // findOneAndUpdate with status filter prevents concurrent double-execution.
-  // Returns null if the scan is already RUNNING/COMPLETED/FAILED or doesn't exist.
+const executeScan = async (scanId, options = {}) => {
+  // ── Step 1: Claim or verify the scan ──────────────────────────────────────
+  // If already claimed by a background worker (QUEUED → RUNNING), use the claimed scan.
+  // Otherwise, atomically claim it (in-process fallback / direct call).
   let scan;
-  try {
-    scan = await Scan.findOneAndUpdate(
-      { _id: scanId, status: 'QUEUED' },
-      { $set: { status: 'RUNNING', startedAt: new Date() } },
-      { returnDocument: 'after' }
-    );
-  } catch (err) {
-    console.error(`[scanExecution] Failed to claim scan ${scanId}:`, err.message);
-    return;
+  if (options.alreadyClaimed && options.claimedScan) {
+    scan = options.claimedScan;
+  } else {
+    try {
+      scan = await Scan.findOneAndUpdate(
+        { _id: scanId, status: 'QUEUED' },
+        { $set: { status: 'RUNNING', startedAt: new Date() } },
+        { returnDocument: 'after' }
+      );
+    } catch (err) {
+      console.error(`[scanExecution] Failed to claim scan ${scanId}:`, err.message);
+      return;
+    }
   }
 
   if (!scan) {
@@ -259,13 +360,19 @@ const executeScan = async (scanId) => {
     repository = await Repository.findById(scan.repositoryId);
   } catch (err) {
     console.error(`[scanExecution] Failed to load repository for scan ${scan._id}:`, err.message);
-    await markFailed(scan._id, 'Failed to load repository data for analysis.');
+    await markFailed(scan._id, 'Failed to load repository data for analysis.', options.workerId);
     return;
   }
 
   if (!repository) {
     console.error(`[scanExecution] Repository ${scan.repositoryId} not found for scan ${scan._id}.`);
-    await markFailed(scan._id, 'The repository associated with this scan no longer exists.');
+    await markFailed(scan._id, 'The repository associated with this scan no longer exists.', options.workerId);
+    return;
+  }
+
+  // Check if lease ownership was lost before calling analyzer
+  if (options.isLeaseLost && options.isLeaseLost()) {
+    console.warn(`[scanExecution] Scan ${scan._id} lost lease ownership before analyzer invocation. Aborting.`);
     return;
   }
 
@@ -279,7 +386,13 @@ const executeScan = async (scanId) => {
     });
   } catch (err) {
     console.error(`[scanExecution] Analyzer failed for scan ${scan._id}:`, err.message);
-    await markFailed(scan._id, sanitizeErrorMessage(err));
+    await markFailed(scan._id, sanitizeErrorMessage(err), options.workerId);
+    return;
+  }
+
+  // Check if lease ownership was lost during long-running analysis
+  if (options.isLeaseLost && options.isLeaseLost()) {
+    console.warn(`[scanExecution] Scan ${scan._id} lost lease ownership during analysis. Aborting result persistence.`);
     return;
   }
 
@@ -290,7 +403,7 @@ const executeScan = async (scanId) => {
   try {
     const fileCounts = mapFileCounts(analyzerResult.statistics || {});
     const facts      = mapFacts(analyzerResult.facts || {});
-    const drift      = analyzerResult.drift || { summary: { total: 0, high: 0, medium: 0, low: 0 }, findings: [] };
+    const drift      = mapDrift(analyzerResult.drift);
     const importantFiles = analyzerResult.importantFiles || {};
     const warnings = (analyzerResult.facts && Array.isArray(analyzerResult.facts.warnings))
       ? analyzerResult.facts.warnings
@@ -311,7 +424,7 @@ const executeScan = async (scanId) => {
     });
   } catch (err) {
     console.error(`[scanExecution] AnalysisResult persistence failed for scan ${scan._id}:`, err.message);
-    await markFailed(scan._id, sanitizeErrorMessage(err));
+    await markFailed(scan._id, sanitizeErrorMessage(err), options.workerId);
     return;
   }
 
@@ -322,14 +435,31 @@ const executeScan = async (scanId) => {
     const filesScanned  = (analyzerResult.statistics && analyzerResult.statistics.totalFiles)          || 0;
     const findingsCount = (analyzerResult.drift && analyzerResult.drift.summary && analyzerResult.drift.summary.total) || 0;
 
-    await Scan.findByIdAndUpdate(scan._id, {
-      $set: {
-        status:       'COMPLETED',
-        completedAt:  new Date(),
-        filesScanned,
-        findingsCount,
+    const filter = { _id: scan._id, status: 'RUNNING' };
+    if (options.workerId) {
+      filter.lockedBy = options.workerId;
+    }
+
+    const completedScan = await Scan.findOneAndUpdate(
+      filter,
+      {
+        $set: {
+          status:       'COMPLETED',
+          completedAt:  new Date(),
+          filesScanned,
+          findingsCount,
+          activeScanKey: null,
+          lockedBy: null,
+          leaseExpiresAt: null,
+        },
       },
-    });
+      { returnDocument: 'after' }
+    );
+
+    if (!completedScan) {
+      console.warn(`[scanExecution] Scan ${scan._id} lost lease or status changed before completion finalization.`);
+      return;
+    }
 
     console.log(
       `[scanExecution] Scan ${scan._id} → COMPLETED ` +
@@ -338,7 +468,7 @@ const executeScan = async (scanId) => {
   } catch (err) {
     // AnalysisResult IS persisted but scan transition failed — mark FAILED for safety.
     console.error(`[scanExecution] Failed to mark scan ${scan._id} as COMPLETED:`, err.message);
-    await markFailed(scan._id, 'Analysis completed but scan status could not be finalized. Please retry.');
+    await markFailed(scan._id, 'Analysis completed but scan status could not be finalized. Please retry.', options.workerId);
   }
 };
 
@@ -349,6 +479,9 @@ module.exports = {
   mapScripts,
   mapFacts,
   mapEnvVars,
+  mapApiEndpoints,
+  mapEvidence,
+  mapDrift,
   mapFileCounts,
 };
 

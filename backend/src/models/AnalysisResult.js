@@ -41,6 +41,10 @@ const apiEndpointSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    source: {
+      type: String,
+      default: null,
+    },
     line: {
       type: Number,
       default: null,
@@ -61,6 +65,10 @@ const envVarSchema = new mongoose.Schema(
       trim: true,
     },
     file: {
+      type: String,
+      default: null,
+    },
+    source: {
       type: String,
       default: null,
     },
@@ -161,10 +169,14 @@ const documentationFactsSchema = new mongoose.Schema(
 const codeEvidenceSchema = new mongoose.Schema(
   {
     file: { type: String, default: null },
+    source: { type: String, default: null },
     line: { type: Number, default: null },
     method: { type: String, default: null },
     path: { type: String, default: null },
     name: { type: String, default: null },
+    prefixResolved: { type: Boolean, default: false },
+    fromTemplate: { type: Boolean, default: false },
+    fromOpenApi: { type: Boolean, default: false },
   },
   { _id: false }
 );
@@ -175,10 +187,15 @@ const codeEvidenceSchema = new mongoose.Schema(
 const documentationEvidenceSchema = new mongoose.Schema(
   {
     file: { type: String, default: null },
+    source: { type: String, default: null },
     line: { type: Number, default: null },
     method: { type: String, default: null },
     path: { type: String, default: null },
     name: { type: String, default: null },
+    fromCurl: { type: Boolean, default: false },
+    fromTable: { type: Boolean, default: false },
+    fromOpenApi: { type: Boolean, default: false },
+    fromDocumentation: { type: Boolean, default: false },
   },
   { _id: false }
 );

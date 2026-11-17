@@ -78,15 +78,29 @@ const requestOtp = async (email) => {
   const expiresAt = new Date(Date.now() + config.otpExpiresMinutes * 60 * 1000);
 
   // Upsert — delete any existing OTP for this email and create a new one
-  await Otp.findOneAndDelete({ email: normalizedEmail });
-  await Otp.create({
+  await Otp.deleteMany({ email: normalizedEmail });
+  const otpRecord = await Otp.create({
     email: normalizedEmail,
     hashedOtp,
     expiresAt,
   });
 
-  // Send OTP through email service
-  await sendOtpEmail(normalizedEmail, otp);
+  if (config.nodeEnv === 'development') {
+    console.log(`[AUTH OTP REQUEST] Normalized email: ${normalizedEmail}`);
+    console.log(`[AUTH OTP REQUEST] Record created: ${otpRecord.createdAt.toISOString()}`);
+    console.log(`[AUTH OTP REQUEST] Expires at: ${otpRecord.expiresAt.toISOString()}`);
+    console.log(`[AUTH OTP REQUEST] OTP code length: ${otp.length}`);
+  }
+
+  try {
+    // Send OTP through email service
+    await sendOtpEmail(normalizedEmail, otp);
+  } catch (err) {
+    // Delivery failed: remove the newly created OTP record so the cooldown
+    // does not lock the user out from immediately requesting again
+    await Otp.findByIdAndDelete(otpRecord._id).catch(() => {});
+    throw err;
+  }
 
   return { message: 'Verification code sent to your email' };
 };
@@ -104,31 +118,56 @@ const requestOtp = async (email) => {
  * @returns {Object} { user, token }
  */
 const verifyOtp = async (email, otp) => {
-  if (!email || !isValidEmail(email)) {
+  const normalizedEmail = email ? email.toLowerCase().trim() : '';
+  const sanitizedOtp = typeof otp === 'string' ? otp.trim() : String(otp || '').trim();
+
+  if (!normalizedEmail || !isValidEmail(normalizedEmail)) {
     const error = new Error('Please provide a valid email address');
     error.statusCode = 400;
     throw error;
   }
 
-  if (!otp || !/^\d{6}$/.test(otp)) {
+  if (!sanitizedOtp || !/^\d{6}$/.test(sanitizedOtp)) {
     const error = new Error('Please provide a valid 6-digit verification code');
     error.statusCode = 400;
     throw error;
   }
 
-  const normalizedEmail = email.toLowerCase().trim();
+  if (config.nodeEnv === 'development') {
+    console.log(`[AUTH OTP VERIFY] Normalized email: ${normalizedEmail}`);
+    console.log(`[AUTH OTP VERIFY] Submitted OTP length: ${sanitizedOtp.length}`);
+  }
 
   // Find active OTP record
   const otpRecord = await Otp.findOne({ email: normalizedEmail });
 
   if (!otpRecord) {
+    if (config.nodeEnv === 'development') {
+      console.log(`[AUTH OTP VERIFY] Record lookup: FAILED (no record found for ${normalizedEmail})`);
+      console.log(`[AUTH OTP VERIFY] Failure category: RECORD_NOT_FOUND`);
+    }
     const error = new Error('No verification code found. Please request a new one');
     error.statusCode = 401;
     throw error;
   }
 
+  if (config.nodeEnv === 'development') {
+    console.log(`[AUTH OTP VERIFY] Record lookup: SUCCESS (recordId: ${otpRecord._id.toString()})`);
+    console.log(`[AUTH OTP VERIFY] Record created at: ${otpRecord.createdAt.toISOString()}`);
+    console.log(`[AUTH OTP VERIFY] Record expires at: ${otpRecord.expiresAt.toISOString()}`);
+    console.log(`[AUTH OTP VERIFY] Current attempts: ${otpRecord.attempts}/${config.otpMaxAttempts}`);
+  }
+
   // Check expiration
-  if (otpRecord.expiresAt < new Date()) {
+  const isExpired = otpRecord.expiresAt < new Date();
+  if (config.nodeEnv === 'development') {
+    console.log(`[AUTH OTP VERIFY] Expiration status: ${isExpired ? 'EXPIRED' : 'VALID'}`);
+  }
+
+  if (isExpired) {
+    if (config.nodeEnv === 'development') {
+      console.log(`[AUTH OTP VERIFY] Failure category: EXPIRED_CODE`);
+    }
     await Otp.findByIdAndDelete(otpRecord._id);
     const error = new Error('Verification code has expired. Please request a new one');
     error.statusCode = 401;
@@ -137,6 +176,9 @@ const verifyOtp = async (email, otp) => {
 
   // Check attempt limit
   if (otpRecord.attempts >= config.otpMaxAttempts) {
+    if (config.nodeEnv === 'development') {
+      console.log(`[AUTH OTP VERIFY] Failure category: MAX_ATTEMPTS_EXCEEDED`);
+    }
     await Otp.findByIdAndDelete(otpRecord._id);
     const error = new Error('Maximum verification attempts exceeded. Please request a new code');
     error.statusCode = 401;
@@ -144,7 +186,10 @@ const verifyOtp = async (email, otp) => {
   }
 
   // Compare OTP with stored hash
-  const isMatch = await bcrypt.compare(otp, otpRecord.hashedOtp);
+  const isMatch = await bcrypt.compare(sanitizedOtp, otpRecord.hashedOtp);
+  if (config.nodeEnv === 'development') {
+    console.log(`[AUTH OTP VERIFY] Bcrypt comparison result: ${isMatch}`);
+  }
 
   if (!isMatch) {
     // Increment attempt counter
@@ -152,11 +197,19 @@ const verifyOtp = async (email, otp) => {
     await otpRecord.save();
 
     const remainingAttempts = config.otpMaxAttempts - otpRecord.attempts;
+    if (config.nodeEnv === 'development') {
+      console.log(`[AUTH OTP VERIFY] Failure category: CODE_MISMATCH (${remainingAttempts} attempts remaining)`);
+    }
+
     const error = new Error(
       `Invalid verification code. ${remainingAttempts} attempt${remainingAttempts !== 1 ? 's' : ''} remaining`
     );
     error.statusCode = 401;
     throw error;
+  }
+
+  if (config.nodeEnv === 'development') {
+    console.log(`[AUTH OTP VERIFY] Verification SUCCESS for ${normalizedEmail}`);
   }
 
   // OTP is valid — delete it so it cannot be reused

@@ -21,6 +21,17 @@ const config = {
   analyzerUrl: (process.env.ANALYZER_URL || 'http://localhost:6001').replace(/\/$/, ''),
   analyzerInternalToken: process.env.ANALYZER_INTERNAL_TOKEN || '',
   analyzerTimeoutMs: parseInt(process.env.ANALYZER_TIMEOUT_MS, 10) || 120000, // 2 minutes default
+
+  // SMTP / Email Delivery
+  smtpHost: (process.env.SMTP_HOST || '').trim(),
+  smtpPort: parseInt(process.env.SMTP_PORT, 10) || 587,
+  smtpSecure: process.env.SMTP_SECURE !== undefined
+    ? process.env.SMTP_SECURE === 'true'
+    : parseInt(process.env.SMTP_PORT, 10) === 465,
+  smtpUser: (process.env.SMTP_USER || '').trim(),
+  smtpPass: (process.env.SMTP_PASS || '').trim(),
+  smtpService: (process.env.SMTP_SERVICE || '').trim().toLowerCase(),
+  emailFrom: (process.env.EMAIL_FROM || '').trim() || (process.env.SMTP_USER ? `CodeAtlas <${process.env.SMTP_USER.trim()}>` : 'CodeAtlas <noreply@codeatlas.dev>'),
 };
 
 module.exports = config;

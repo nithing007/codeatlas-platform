@@ -9,15 +9,17 @@ require('dotenv').config();
 const app = require('./src/app');
 const config = require('./src/config');
 const connectDB = require('./src/config/db');
-const { reconcileStrandedScans } = require('./src/services/scanService');
+const emailService = require('./src/services/emailService');
 
 const startServer = async () => {
   try {
     // Connect to MongoDB
     await connectDB();
 
-    // Single-instance startup recovery: reconcile any stranded QUEUED or RUNNING scans
-    await reconcileStrandedScans();
+    // Verify Email SMTP transporter configuration (non-blocking diagnostics)
+    await emailService.verifyTransporterConnection().catch((err) => {
+      console.error(`  [EMAIL] Startup verification check failed: ${err.message}`);
+    });
 
     // Start Express server
     const server = app.listen(config.port, () => {

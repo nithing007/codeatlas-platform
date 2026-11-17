@@ -7,7 +7,7 @@ const mongoose = require('mongoose');
 const Scan = require('../models/Scan');
 const Repository = require('../models/Repository');
 const githubService = require('./githubService');
-const scanExecutionService = require('./scanExecutionService');
+const { enqueueScan } = require('../queue/scanQueue');
 
 /**
  * Creates a new QUEUED scan for an authenticated user's repository.
@@ -16,8 +16,8 @@ const scanExecutionService = require('./scanExecutionService');
  * 1. Validates repository ID and ownership.
  * 2. Prevents duplicate active scans (QUEUED or RUNNING) → 409.
  * 3. Resolves the current commit SHA from GitHub for the repo's default branch.
- * 4. Creates the Scan with server-controlled fields (branch, commitSha, status).
- * 5. Schedules async in-process execution (can be replaced by a queue worker).
+ * 4. Atomically enqueues the Scan document into the persistent MongoDB queue with activeScanKey.
+ * 5. Returns the queued Scan document immediately (HTTP 201) for worker execution.
  *
  * @param {string|mongoose.Types.ObjectId} userId - Authenticated user ID.
  * @param {string} repositoryId - MongoDB ObjectId of the repository.
@@ -39,7 +39,7 @@ const createScan = async (userId, repositoryId) => {
     throw error;
   }
 
-  // Prevent duplicate active scans for the same repository
+  // Prevent duplicate active scans for the same repository (fast path pre-check)
   const activeScan = await Scan.findOne({
     repositoryId: repository._id,
     status: { $in: ['QUEUED', 'RUNNING'] },
@@ -57,38 +57,16 @@ const createScan = async (userId, repositoryId) => {
   const branch = repository.defaultBranch || 'main';
   const commitSha = await githubService.resolveCommitSha(repository.owner, repository.name, branch);
 
-  // Create scan with server-controlled lifecycle fields.
-  // The client cannot supply: status, commitSha, startedAt, completedAt,
-  // filesScanned, findingsCount, or error.
-  const activeScanKey = repository._id.toString();
-  let scan;
-  try {
-    scan = await Scan.create({
-      repositoryId: repository._id,
-      userId,
-      status:    'QUEUED',
-      branch,
-      commitSha,
-      activeScanKey,
-    });
-  } catch (err) {
-    if (err.code === 11000) {
-      const error = new Error('A scan is already in progress for this repository.');
-      error.statusCode = 409;
-      error.code = 'SCAN_ALREADY_IN_PROGRESS';
-      throw error;
-    }
-    throw err;
-  }
-
-  // Schedule async in-process execution.
-  // setImmediate fires after the current event-loop tick so the HTTP response
-  // is sent before execution begins. Replacing setImmediate with a queue
-  // publisher requires no changes to executeScan itself.
-  setImmediate(() => {
-    scanExecutionService.executeScan(scan._id).catch((err) => {
-      console.error(`[scanService] Unhandled error in executeScan for scan ${scan._id}:`, err.message);
-    });
+  // Enqueue scan in persistent MongoDB queue.
+  // Uses enqueueScan to atomically create the Scan record with queue parameters
+  // (status: QUEUED, nextRunAt: now, activeScanKey, attempts: 0, maxAttempts: 3).
+  // Concurrency protection is enforced via activeScanKey partial unique index.
+  const scan = await enqueueScan({
+    repositoryId: repository._id,
+    userId,
+    branch,
+    commitSha,
+    priority: 0,
   });
 
   return scan;

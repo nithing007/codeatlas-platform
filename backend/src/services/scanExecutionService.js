@@ -25,6 +25,8 @@ const Scan = require('../models/Scan');
 const Repository = require('../models/Repository');
 const AnalysisResult = require('../models/AnalysisResult');
 const analyzerService = require('./analyzerService');
+const { classifyError, sanitizeErrorMessage } = require('../queue/errorClassifier');
+const { scheduleRetry, markTerminalFailure } = require('../queue/scanWorker');
 
 // ---------------------------------------------------------------------------
 // Analyzer version constant
@@ -249,67 +251,58 @@ function mapDrift(drift) {
   return { summary, findings };
 }
 
-/**
- * Produces a safe, user-facing error message from an internal error.
- * Never includes: stack traces, file paths, tokens, MongoDB URIs, or env values.
- *
- * @param {Error} err
- * @returns {string}
- */
-function sanitizeErrorMessage(err) {
-  if (!err) return 'An unexpected error occurred during analysis.';
 
-  // Known safe codes from analyzerService
-  if (err.isAnalyzerError) {
-    const code = err.statusCode;
-    if (code === 404) return 'The repository or branch was not found on GitHub.';
-    if (code === 429) return 'GitHub API rate limit exceeded. Please try again later.';
-    if (code === 503) return 'The analyzer service is currently unavailable.';
-    if (code === 504) return 'The analysis request timed out.';
-    return 'The analyzer could not complete the analysis. Please try again.';
-  }
-
-  // MongoDB duplicate key on AnalysisResult
-  if (err.code === 11000) {
-    return 'An analysis result already exists for this scan.';
-  }
-
-  // GitHub errors from githubService
-  if (err.statusCode === 404) return 'The repository or branch was not found on GitHub.';
-  if (err.statusCode === 429) return 'GitHub API rate limit exceeded.';
-  if (err.statusCode === 502) return 'Could not reach GitHub API.';
-
-  return 'An internal error occurred during analysis. Please try again.';
-}
 
 /**
  * Safely transitions a scan to FAILED.
  * Swallows errors from the update itself to avoid masking the original failure.
  *
  * @param {string|object} scanId
- * @param {string} safeMessage
+ * @param {string|Object} safeMessage
+ * @param {string|null} [workerId=null]
  */
 async function markFailed(scanId, safeMessage, workerId = null) {
   try {
-    const filter = { _id: scanId };
-    if (workerId) {
-      filter.status = 'RUNNING';
-      filter.lockedBy = workerId;
-    }
-
-    await Scan.findOneAndUpdate(filter, {
-      $set: {
-        status:      'FAILED',
-        completedAt: new Date(),
-        error:         safeMessage,
-        activeScanKey: null,
-        lockedBy: null,
-        leaseExpiresAt: null,
-      },
-    });
+    return await markTerminalFailure(scanId, safeMessage, workerId);
   } catch (updateErr) {
     console.error(`[scanExecution] Failed to mark scan ${scanId} as FAILED:`, updateErr.message);
   }
+}
+
+/**
+ * Handles execution failure for a scan.
+ * If claimed by a worker, error is retryable, and attempts < maxAttempts:
+ *   Schedules an exponential backoff retry (QUEUED with nextRunAt in future).
+ * Otherwise:
+ *   Transitions to terminal FAILED status, releases activeScanKey.
+ *
+ * @param {Object} scan - Scan document
+ * @param {Error|unknown} err - Caught error
+ * @param {Object} [options={}] - Execution options containing workerId, onExecutionError, etc.
+ * @returns {Promise<Object|null>}
+ */
+async function handleFailure(scan, err, options = {}) {
+  const workerId = options.workerId || scan.lockedBy || null;
+
+  if (typeof options.onExecutionError === 'function') {
+    try {
+      await options.onExecutionError(err);
+    } catch (cbErr) {
+      console.error('[scanExecution] Error during onExecutionError callback:', cbErr.message);
+    }
+  }
+
+  const errorInfo = classifyError(err);
+
+  const attempts = typeof scan.attempts === 'number' ? scan.attempts : 1;
+  const maxAttempts = typeof scan.maxAttempts === 'number' ? scan.maxAttempts : 3;
+
+  if (workerId && errorInfo.retryable && attempts < maxAttempts) {
+    const retried = await scheduleRetry(scan, errorInfo, workerId);
+    if (retried) return retried;
+  }
+
+  return await markTerminalFailure(scan._id, errorInfo, workerId);
 }
 
 // ---------------------------------------------------------------------------
@@ -360,13 +353,15 @@ const executeScan = async (scanId, options = {}) => {
     repository = await Repository.findById(scan.repositoryId);
   } catch (err) {
     console.error(`[scanExecution] Failed to load repository for scan ${scan._id}:`, err.message);
-    await markFailed(scan._id, 'Failed to load repository data for analysis.', options.workerId);
+    await handleFailure(scan, err, options);
     return;
   }
 
   if (!repository) {
     console.error(`[scanExecution] Repository ${scan.repositoryId} not found for scan ${scan._id}.`);
-    await markFailed(scan._id, 'The repository associated with this scan no longer exists.', options.workerId);
+    const notFoundErr = new Error('The repository associated with this scan no longer exists.');
+    notFoundErr.statusCode = 404;
+    await handleFailure(scan, notFoundErr, options);
     return;
   }
 
@@ -386,7 +381,7 @@ const executeScan = async (scanId, options = {}) => {
     });
   } catch (err) {
     console.error(`[scanExecution] Analyzer failed for scan ${scan._id}:`, err.message);
-    await markFailed(scan._id, sanitizeErrorMessage(err), options.workerId);
+    await handleFailure(scan, err, options);
     return;
   }
 
@@ -401,30 +396,64 @@ const executeScan = async (scanId, options = {}) => {
   // NEVER includes the raw files[] inventory (security/structural contract).
   let analysisResult;
   try {
-    const fileCounts = mapFileCounts(analyzerResult.statistics || {});
-    const facts      = mapFacts(analyzerResult.facts || {});
-    const drift      = mapDrift(analyzerResult.drift);
-    const importantFiles = analyzerResult.importantFiles || {};
-    const warnings = (analyzerResult.facts && Array.isArray(analyzerResult.facts.warnings))
-      ? analyzerResult.facts.warnings
-      : [];
+    // Check if an AnalysisResult already exists for this scanId (e.g. after crash before completion)
+    const existingResult = await AnalysisResult.findOne({ scanId: scan._id });
+    if (existingResult) {
+      if (existingResult.repositoryId.toString() === scan.repositoryId.toString()) {
+        console.log(`[scanExecution] Found existing AnalysisResult ${existingResult._id} for scan ${scan._id}. Reusing.`);
+        analysisResult = existingResult;
+      } else {
+        throw new Error(`AnalysisResult ${existingResult._id} repository mismatch for scan ${scan._id}.`);
+      }
+    } else {
+      const fileCounts = mapFileCounts(analyzerResult.statistics || {});
+      const facts      = mapFacts(analyzerResult.facts || {});
+      const drift      = mapDrift(analyzerResult.drift);
+      const importantFiles = analyzerResult.importantFiles || {};
+      const warnings = (analyzerResult.facts && Array.isArray(analyzerResult.facts.warnings))
+        ? analyzerResult.facts.warnings
+        : [];
 
-    analysisResult = await AnalysisResult.create({
-      scanId:          scan._id,
-      repositoryId:    scan.repositoryId,
-      userId:          scan.userId,
-      commitSha:       scan.commitSha,
-      branch:          scan.branch,
-      analyzerVersion: ANALYZER_VERSION,
-      fileCounts,
-      facts,
-      drift,
-      importantFiles,
-      warnings,
-    });
+      try {
+        analysisResult = await AnalysisResult.create({
+          scanId:          scan._id,
+          repositoryId:    scan.repositoryId,
+          userId:          scan.userId,
+          commitSha:       scan.commitSha,
+          branch:          scan.branch,
+          analyzerVersion: ANALYZER_VERSION,
+          fileCounts,
+          facts,
+          drift,
+          importantFiles,
+          warnings,
+        });
+      } catch (createErr) {
+        if (createErr.code === 11000) {
+          const isScanIdCollision =
+            (createErr.keyPattern && createErr.keyPattern.scanId) ||
+            (createErr.message && createErr.message.includes('scanId'));
+
+          if (isScanIdCollision) {
+            console.warn(`[scanExecution] Duplicate key on scanId for scan ${scan._id}. Retrieving existing result.`);
+            const recoveredResult = await AnalysisResult.findOne({ scanId: scan._id });
+            if (recoveredResult && recoveredResult.repositoryId.toString() === scan.repositoryId.toString()) {
+              analysisResult = recoveredResult;
+            } else {
+              throw createErr;
+            }
+          } else {
+            // Collision is on an unrelated index — do NOT swallow!
+            throw createErr;
+          }
+        } else {
+          throw createErr;
+        }
+      }
+    }
   } catch (err) {
     console.error(`[scanExecution] AnalysisResult persistence failed for scan ${scan._id}:`, err.message);
-    await markFailed(scan._id, sanitizeErrorMessage(err), options.workerId);
+    await handleFailure(scan, err, options);
     return;
   }
 
@@ -468,7 +497,7 @@ const executeScan = async (scanId, options = {}) => {
   } catch (err) {
     // AnalysisResult IS persisted but scan transition failed — mark FAILED for safety.
     console.error(`[scanExecution] Failed to mark scan ${scan._id} as COMPLETED:`, err.message);
-    await markFailed(scan._id, 'Analysis completed but scan status could not be finalized. Please retry.', options.workerId);
+    await handleFailure(scan, err, options);
   }
 };
 

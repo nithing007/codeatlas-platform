@@ -19,7 +19,16 @@ const crypto = require('crypto');
 const mongoose = require('mongoose');
 const Scan = require('../models/Scan');
 const queueConstants = require('./queueConstants');
-const scanExecutionService = require('../services/scanExecutionService');
+const { calculateBackoff } = require('./scanQueue');
+const { classifyError, sanitizeErrorMessage } = require('./errorClassifier');
+
+let scanExecutionService = null;
+function getScanExecutionService() {
+  if (!scanExecutionService) {
+    scanExecutionService = require('../services/scanExecutionService');
+  }
+  return scanExecutionService;
+}
 
 /**
  * Generates a globally unique identifier for this worker instance.
@@ -294,6 +303,119 @@ async function reclaimStalledScans(options = {}) {
 }
 
 /**
+ * Atomically schedules a retry for an eligible scan document.
+ * Transition: RUNNING -> QUEUED
+ *
+ * Invariants:
+ * - Must match _id, status: 'RUNNING', lockedBy: workerId
+ * - Calculates future nextRunAt via calculateBackoff(scan.attempts)
+ * - Clears lockedBy: null, lockedAt: null, leaseExpiresAt: null
+ * - Preserves activeScanKey intact!
+ * - completedAt is NOT set!
+ * - Attempts count is NOT modified!
+ *
+ * @param {Object} scan - Currently running Scan document
+ * @param {Object} errorInfo - Classification result with sanitizedMessage
+ * @param {string} workerId - Worker holding the lease
+ * @param {Date} [now=new Date()] - Reference timestamp (overrideable for testing)
+ * @returns {Promise<Object|null>} Updated scan if successfully retried, null if ownership was lost
+ */
+async function scheduleRetry(scan, errorInfo, workerId, now = new Date()) {
+  if (!scan || !scan._id || !workerId) return null;
+
+  const retryDelayMs = calculateBackoff(scan.attempts);
+  const nextRunAt = new Date(now.getTime() + retryDelayMs);
+  const sanitizedMsg = errorInfo?.sanitizedMessage || 'Transient analysis failure';
+
+  const filter = {
+    _id: scan._id,
+    status: 'RUNNING',
+    lockedBy: workerId,
+  };
+
+  const update = {
+    $set: {
+      status: 'QUEUED',
+      nextRunAt,
+      lockedBy: null,
+      lockedAt: null,
+      leaseExpiresAt: null,
+      lastError: sanitizedMsg,
+    },
+    // activeScanKey is preserved so the repository reservation remains held
+  };
+
+  try {
+    const updated = await Scan.findOneAndUpdate(filter, update, { returnDocument: 'after' });
+    if (updated) {
+      console.log(
+        `[retry] Scan ${scan._id} (attempt ${scan.attempts}/${scan.maxAttempts}) failed transiently. Scheduled retry at ${nextRunAt.toISOString()} (delay: ${retryDelayMs}ms).`
+      );
+    }
+    return updated;
+  } catch (err) {
+    console.error(`[retry] Error scheduling retry for scan ${scan._id}:`, err.message);
+    return null;
+  }
+}
+
+/**
+ * Atomically marks a scan as permanently FAILED.
+ * Transition: RUNNING -> FAILED
+ *
+ * Invariants:
+ * - Must match _id, status: 'RUNNING', lockedBy: workerId
+ * - Sets status: 'FAILED'
+ * - Sets completedAt: now
+ * - Clears lockedBy: null, lockedAt: null, leaseExpiresAt: null
+ * - Releases activeScanKey: null
+ * - Stores sanitized error in both error and lastError
+ *
+ * @param {string|mongoose.Types.ObjectId} scanId - Scan ID
+ * @param {Object|string} errorInfo - Error summary
+ * @param {string} [workerId=null] - Worker holding the lease
+ * @param {Date} [now=new Date()] - Reference timestamp
+ * @returns {Promise<Object|null>} Updated scan if successfully failed, null if ownership was lost
+ */
+async function markTerminalFailure(scanId, errorInfo, workerId = null, now = new Date()) {
+  if (!scanId) return null;
+
+  const sanitizedMsg = typeof errorInfo === 'string'
+    ? sanitizeErrorMessage(errorInfo)
+    : (errorInfo?.sanitizedMessage || sanitizeErrorMessage(errorInfo?.message) || 'Analysis failed permanently.');
+
+  const filter = { _id: scanId };
+  if (workerId) {
+    filter.status = 'RUNNING';
+    filter.lockedBy = workerId;
+  }
+
+  const update = {
+    $set: {
+      status: 'FAILED',
+      completedAt: now,
+      error: sanitizedMsg,
+      lastError: sanitizedMsg,
+      lockedBy: null,
+      lockedAt: null,
+      leaseExpiresAt: null,
+      activeScanKey: null, // Released!
+    },
+  };
+
+  try {
+    const updated = await Scan.findOneAndUpdate(filter, update, { returnDocument: 'after' });
+    if (updated) {
+      console.log(`[failure] Scan ${scanId} transitioned to FAILED: ${sanitizedMsg}`);
+    }
+    return updated;
+  } catch (err) {
+    console.error(`[failure] Error marking scan ${scanId} as terminal failure:`, err.message);
+    return null;
+  }
+}
+
+/**
  * Creates a configurable worker instance.
  *
  * @param {Object} [options={}]
@@ -341,11 +463,14 @@ function createWorker(options = {}) {
     });
 
     try {
-      await scanExecutionService.executeScan(scan._id, {
+      await getScanExecutionService().executeScan(scan._id, {
         alreadyClaimed: true,
         claimedScan: scan,
         workerId,
         isLeaseLost: () => leaseLost,
+        onExecutionError: async () => {
+          await heartbeat.stop();
+        },
       });
     } catch (err) {
       console.error(`[scanWorker:${workerId}] Error executing scan ${scan._id}:`, err.message);
@@ -507,5 +632,7 @@ module.exports = {
   startHeartbeat,
   reclaimSingleScan,
   reclaimStalledScans,
+  scheduleRetry,
+  markTerminalFailure,
   createWorker,
 };

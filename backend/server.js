@@ -13,6 +13,13 @@ const emailService = require('./src/services/emailService');
 
 const startServer = async () => {
   try {
+    // Validate critical production environment configuration
+    if (config.nodeEnv === 'production') {
+      if (!config.jwtSecret || config.jwtSecret === 'default_dev_secret') {
+        throw new Error('FATAL SECURITY ERROR: JWT_SECRET must be explicitly configured in production mode.');
+      }
+    }
+
     // Connect to MongoDB
     await connectDB();
 

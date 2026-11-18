@@ -88,11 +88,13 @@ class RepositoryScanner {
    * @param {string} owner - Repository owner.
    * @param {string} repo - Repository name.
    * @param {string} [branch='main'] - Target branch or ref.
+   * @param {string} [commitSha=null] - Exact commit SHA to scan (for deterministic snapshot analysis).
    * @returns {Promise<Object>} Structured analysis result including facts.
    */
-  async scan(owner, repo, branch = 'main') {
-    // 1. Fetch complete repository tree from provider
-    const treeResult = await this.provider.getTree(owner, repo, branch);
+  async scan(owner, repo, branch = 'main', commitSha = null) {
+    // 1. Fetch complete repository tree from provider (using commitSha if provided)
+    const treeResult = await this.provider.getTree(owner, repo, branch, commitSha);
+    const resolvedCommitSha = commitSha || treeResult.commitSha || null;
     const rawFiles = treeResult.tree || [];
 
     const files = [];
@@ -167,8 +169,16 @@ class RepositoryScanner {
     // 3. Detect important files across inventory
     const importantFiles = detectImportantFiles(files);
 
-    // 4. Extract facts from file contents
-    const facts = await this._extractFacts(owner, repo, branch, files, importantFiles);
+    // 4. Extract facts from file contents using exact commit reference
+    const facts = await this._extractFacts(owner, repo, branch, files, importantFiles, resolvedCommitSha);
+
+    // Record warnings for API truncation or file limits
+    if (treeResult.truncated) {
+      facts.warnings.push('[scanner] Repository tree was truncated by GitHub API. Some files were not analyzed.');
+    }
+    if (rawFiles.length > this.maxTotalFiles) {
+      facts.warnings.push(`[scanner] Maximum file limit of ${this.maxTotalFiles} reached. Additional files skipped.`);
+    }
 
     // 5. Run deterministic drift detection over extracted facts
     const drift = detectDrift(facts);
@@ -180,7 +190,7 @@ class RepositoryScanner {
         name: repo,
         fullName: `${owner}/${repo}`,
         branch,
-        commitSha: treeResult.commitSha || null,
+        commitSha: resolvedCommitSha,
       },
       statistics,
       files,
@@ -196,7 +206,7 @@ class RepositoryScanner {
    *
    * @private
    */
-  async _extractFacts(owner, repo, branch, files, importantFiles) {
+  async _extractFacts(owner, repo, branch, files, importantFiles, commitSha = null) {
     const codeFacts = {
       apiEndpoints: [],
       environmentVariables: [],
@@ -239,12 +249,24 @@ class RepositoryScanner {
         continue;
       }
 
-      // Fetch file content from provider
+      // Fetch file content from provider using exact commitSha or branch ref
+      const targetRef = commitSha || branch;
       let content;
       try {
-        const result = await this.provider.getFileContent(owner, repo, filePath, branch);
+        const result = await this.provider.getFileContent(owner, repo, filePath, targetRef);
         content = result.content;
       } catch (err) {
+        // Critical: Do NOT swallow rate limits, timeouts, or network failures!
+        // Swallowing them produces false clean/empty analysis results.
+        if (
+          err.statusCode === 429 ||
+          err.statusCode === 403 ||
+          err.statusCode === 504 ||
+          err.statusCode === 502 ||
+          err.name === 'AbortError'
+        ) {
+          throw err;
+        }
         warnings.push(`[scanner] Could not fetch ${filePath}: ${err.message}`);
         continue;
       }

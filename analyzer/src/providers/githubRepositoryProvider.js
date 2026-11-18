@@ -48,42 +48,86 @@ class GitHubRepositoryProvider extends RepositoryProvider {
   }
 
   /**
+   * Determines whether an HTTP response indicates GitHub rate limiting.
+   * GitHub signals rate limiting either via HTTP 429 or HTTP 403 with x-ratelimit-remaining: '0'.
+   * Other HTTP 403 responses represent authorization/permission failures (e.g. private repo or forbidden).
+   *
+   * @param {Response} res - Fetch Response object or mock response.
+   * @returns {boolean}
+   */
+  _isRateLimited(res) {
+    if (res.status === 429) {
+      return true;
+    }
+    if (res.status === 403) {
+      const remaining = res.headers && typeof res.headers.get === 'function'
+        ? res.headers.get('x-ratelimit-remaining')
+        : (res.headers && res.headers['x-ratelimit-remaining']);
+      return remaining === '0';
+    }
+    return false;
+  }
+
+  /**
    * Fetches the complete file tree of a public GitHub repository.
    *
    * @param {string} owner - Repository owner.
    * @param {string} repo - Repository name.
    * @param {string} [branch='main'] - Target branch.
+   * @param {string} [targetCommitSha=null] - Exact commit SHA to query directly (skips branch ref lookup).
    * @returns {Promise<{ commitSha: string, tree: Array<{ path: string, size?: number, type: string, sha: string }> }>}
    */
-  async getTree(owner, repo, branch = 'main') {
-    // 1. Resolve branch to latest commit SHA
-    const commitUrl = `${GITHUB_API_BASE_URL}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/commits/${encodeURIComponent(branch)}`;
-    const commitRes = await this._fetch(commitUrl);
+  async getTree(owner, repo, branch = 'main', targetCommitSha = null) {
+    let commitSha = targetCommitSha;
 
-    if (commitRes.status === 404) {
-      const error = new Error(`Repository or branch "${owner}/${repo}#${branch}" not found on GitHub.`);
-      error.statusCode = 404;
-      throw error;
+    if (!commitSha) {
+      // 1. Resolve branch to latest commit SHA if not explicitly supplied
+      const commitUrl = `${GITHUB_API_BASE_URL}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/commits/${encodeURIComponent(branch)}`;
+      const commitRes = await this._fetch(commitUrl);
+
+      if (commitRes.status === 404) {
+        const error = new Error(`Repository or branch "${owner}/${repo}#${branch}" not found on GitHub.`);
+        error.statusCode = 404;
+        throw error;
+      }
+
+      if (this._isRateLimited(commitRes)) {
+        const error = new Error('GitHub API rate limit exceeded during repository scan.');
+        error.statusCode = 429;
+        throw error;
+      }
+
+      if (commitRes.status === 403) {
+        const error = new Error(`Access to repository "${owner}/${repo}#${branch}" was forbidden on GitHub.`);
+        error.statusCode = 403;
+        throw error;
+      }
+
+      if (!commitRes.ok) {
+        const error = new Error(`GitHub API error: ${commitRes.status}`);
+        error.statusCode = commitRes.status;
+        throw error;
+      }
+
+      const commitData = await commitRes.json();
+      commitSha = commitData.sha;
     }
-
-    if (commitRes.status === 403 || commitRes.status === 429) {
-      const error = new Error('GitHub API rate limit exceeded during repository scan.');
-      error.statusCode = 429;
-      throw error;
-    }
-
-    if (!commitRes.ok) {
-      const error = new Error(`GitHub API error: ${commitRes.status}`);
-      error.statusCode = commitRes.status;
-      throw error;
-    }
-
-    const commitData = await commitRes.json();
-    const commitSha = commitData.sha;
 
     // 2. Fetch recursive git tree using commit SHA
     const treeUrl = `${GITHUB_API_BASE_URL}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/git/trees/${commitSha}?recursive=1`;
     const treeRes = await this._fetch(treeUrl);
+
+    if (this._isRateLimited(treeRes)) {
+      const error = new Error('GitHub API rate limit exceeded during repository tree scan.');
+      error.statusCode = 429;
+      throw error;
+    }
+
+    if (treeRes.status === 403) {
+      const error = new Error(`Access to repository tree for "${owner}/${repo}" was forbidden on GitHub.`);
+      error.statusCode = 403;
+      throw error;
+    }
 
     if (!treeRes.ok) {
       const error = new Error(`Failed to fetch repository tree: ${treeRes.status}`);
@@ -122,6 +166,18 @@ class GitHubRepositoryProvider extends RepositoryProvider {
   async getFileContent(owner, repo, filePath, branch = 'main') {
     const rawUrl = `${GITHUB_RAW_BASE_URL}/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/${encodeURIComponent(branch)}/${filePath}`;
     const res = await this._fetch(rawUrl);
+
+    if (this._isRateLimited(res)) {
+      const error = new Error(`GitHub rate limit exceeded while retrieving "${filePath}".`);
+      error.statusCode = 429;
+      throw error;
+    }
+
+    if (res.status === 403) {
+      const error = new Error(`Access to file "${filePath}" in repository "${owner}/${repo}" was forbidden.`);
+      error.statusCode = 403;
+      throw error;
+    }
 
     if (res.status === 404) {
       const error = new Error(`File "${filePath}" not found in repository "${owner}/${repo}".`);

@@ -10,9 +10,10 @@ class RepositoryProvider {
    * @param {string} owner - Repository owner.
    * @param {string} repo - Repository name.
    * @param {string} [branch='main'] - Target branch or ref.
+   * @param {string} [commitSha=null] - Exact commit SHA to query directly.
    * @returns {Promise<{ commitSha: string, tree: Array<{ path: string, size?: number, type: 'blob'|'tree', sha?: string }> }>}
    */
-  async getTree(owner, repo, branch = 'main') {
+  async getTree(owner, repo, branch = 'main', commitSha = null) {
     throw new Error('getTree() must be implemented by concrete repository provider.');
   }
 

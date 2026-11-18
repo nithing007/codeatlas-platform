@@ -6,6 +6,7 @@
 
 const {
   RepositoryScanner,
+  GitHubRepositoryProvider,
   MockRepositoryProvider,
   classifyFile,
   CATEGORIES,
@@ -218,6 +219,273 @@ async function runAnalyzerTests() {
     assert(err.statusCode === 404, '404 status code returned for non-existent repository');
   }
   assert(notFoundHandled, 'Non-existent repository handled safely with error');
+
+  // -------------------------------------------------------------
+  // Test Group 8: Phase 7D - GitHub API 403 vs 429 Error Classification (Tests A-E)
+  // -------------------------------------------------------------
+  console.log('\n--- Test Group 8: Phase 7D - GitHub API 403 vs 429 Classification ---');
+
+  function createMockResponse({ status, headers = {}, body = {} }) {
+    const headerMap = new Map();
+    for (const [k, v] of Object.entries(headers)) {
+      headerMap.set(k.toLowerCase(), String(v));
+    }
+    return {
+      status,
+      ok: status >= 200 && status < 300,
+      headers: {
+        get: (name) => headerMap.get(name.toLowerCase()) || null,
+      },
+      json: async () => body,
+      text: async () => (typeof body === 'string' ? body : JSON.stringify(body)),
+    };
+  }
+
+  const provider = new GitHubRepositoryProvider();
+
+  // Test A1: Commit lookup 403 with x-ratelimit-remaining: '0' -> statusCode: 429
+  {
+    provider._fetch = async () => createMockResponse({
+      status: 403,
+      headers: { 'x-ratelimit-remaining': '0' },
+    });
+    let errCaught = null;
+    try {
+      await provider.getTree('owner', 'repo', 'main');
+    } catch (err) {
+      errCaught = err;
+    }
+    assert(errCaught && errCaught.statusCode === 429, 'Test A1: Commit 403 with remaining 0 throws statusCode 429');
+  }
+
+  // Test A2: Tree lookup 403 with x-ratelimit-remaining: '0' -> statusCode: 429
+  {
+    let callCount = 0;
+    provider._fetch = async () => {
+      callCount++;
+      if (callCount === 1) {
+        return createMockResponse({ status: 200, body: { sha: 'sha123' } });
+      }
+      return createMockResponse({
+        status: 403,
+        headers: { 'x-ratelimit-remaining': '0' },
+      });
+    };
+    let errCaught = null;
+    try {
+      await provider.getTree('owner', 'repo', 'main');
+    } catch (err) {
+      errCaught = err;
+    }
+    assert(errCaught && errCaught.statusCode === 429, 'Test A2: Tree 403 with remaining 0 throws statusCode 429');
+  }
+
+  // Test A3: File content 403 with x-ratelimit-remaining: '0' -> statusCode: 429
+  {
+    provider._fetch = async () => createMockResponse({
+      status: 403,
+      headers: { 'x-ratelimit-remaining': '0' },
+    });
+    let errCaught = null;
+    try {
+      await provider.getFileContent('owner', 'repo', 'README.md');
+    } catch (err) {
+      errCaught = err;
+    }
+    assert(errCaught && errCaught.statusCode === 429, 'Test A3: File content 403 with remaining 0 throws statusCode 429');
+  }
+
+  // Test B1: Commit lookup 403 with x-ratelimit-remaining: '10' -> statusCode: 403
+  {
+    provider._fetch = async () => createMockResponse({
+      status: 403,
+      headers: { 'x-ratelimit-remaining': '10' },
+    });
+    let errCaught = null;
+    try {
+      await provider.getTree('owner', 'repo', 'main');
+    } catch (err) {
+      errCaught = err;
+    }
+    assert(errCaught && errCaught.statusCode === 403, 'Test B1: Commit 403 with remaining >0 throws statusCode 403');
+  }
+
+  // Test B2: Tree lookup 403 with x-ratelimit-remaining: '10' -> statusCode: 403
+  {
+    let callCount = 0;
+    provider._fetch = async () => {
+      callCount++;
+      if (callCount === 1) {
+        return createMockResponse({ status: 200, body: { sha: 'sha123' } });
+      }
+      return createMockResponse({
+        status: 403,
+        headers: { 'x-ratelimit-remaining': '10' },
+      });
+    };
+    let errCaught = null;
+    try {
+      await provider.getTree('owner', 'repo', 'main');
+    } catch (err) {
+      errCaught = err;
+    }
+    assert(errCaught && errCaught.statusCode === 403, 'Test B2: Tree 403 with remaining >0 throws statusCode 403');
+  }
+
+  // Test B3: File content 403 with x-ratelimit-remaining: '10' -> statusCode: 403
+  {
+    provider._fetch = async () => createMockResponse({
+      status: 403,
+      headers: { 'x-ratelimit-remaining': '10' },
+    });
+    let errCaught = null;
+    try {
+      await provider.getFileContent('owner', 'repo', 'README.md');
+    } catch (err) {
+      errCaught = err;
+    }
+    assert(errCaught && errCaught.statusCode === 403, 'Test B3: File content 403 with remaining >0 throws statusCode 403');
+  }
+
+  // Test C1: Commit lookup 403 with missing header -> statusCode: 403
+  {
+    provider._fetch = async () => createMockResponse({ status: 403 });
+    let errCaught = null;
+    try {
+      await provider.getTree('owner', 'repo', 'main');
+    } catch (err) {
+      errCaught = err;
+    }
+    assert(errCaught && errCaught.statusCode === 403, 'Test C1: Commit 403 with missing header throws statusCode 403');
+  }
+
+  // Test C2: Tree lookup 403 with missing header -> statusCode: 403
+  {
+    let callCount = 0;
+    provider._fetch = async () => {
+      callCount++;
+      if (callCount === 1) {
+        return createMockResponse({ status: 200, body: { sha: 'sha123' } });
+      }
+      return createMockResponse({ status: 403 });
+    };
+    let errCaught = null;
+    try {
+      await provider.getTree('owner', 'repo', 'main');
+    } catch (err) {
+      errCaught = err;
+    }
+    assert(errCaught && errCaught.statusCode === 403, 'Test C2: Tree 403 with missing header throws statusCode 403');
+  }
+
+  // Test C3: File content 403 with missing header -> statusCode: 403
+  {
+    provider._fetch = async () => createMockResponse({ status: 403 });
+    let errCaught = null;
+    try {
+      await provider.getFileContent('owner', 'repo', 'README.md');
+    } catch (err) {
+      errCaught = err;
+    }
+    assert(errCaught && errCaught.statusCode === 403, 'Test C3: File content 403 with missing header throws statusCode 403');
+  }
+
+  // Test D1: Commit 429 -> statusCode: 429
+  {
+    provider._fetch = async () => createMockResponse({ status: 429 });
+    let errCaught = null;
+    try {
+      await provider.getTree('owner', 'repo', 'main');
+    } catch (err) {
+      errCaught = err;
+    }
+    assert(errCaught && errCaught.statusCode === 429, 'Test D1: Commit 429 throws statusCode 429');
+  }
+
+  // Test D2: Tree 429 -> statusCode: 429
+  {
+    let callCount = 0;
+    provider._fetch = async () => {
+      callCount++;
+      if (callCount === 1) {
+        return createMockResponse({ status: 200, body: { sha: 'sha123' } });
+      }
+      return createMockResponse({ status: 429 });
+    };
+    let errCaught = null;
+    try {
+      await provider.getTree('owner', 'repo', 'main');
+    } catch (err) {
+      errCaught = err;
+    }
+    assert(errCaught && errCaught.statusCode === 429, 'Test D2: Tree 429 throws statusCode 429');
+  }
+
+  // Test D3: File content 429 -> statusCode: 429
+  {
+    provider._fetch = async () => createMockResponse({ status: 429 });
+    let errCaught = null;
+    try {
+      await provider.getFileContent('owner', 'repo', 'README.md');
+    } catch (err) {
+      errCaught = err;
+    }
+    assert(errCaught && errCaught.statusCode === 429, 'Test D3: File content 429 throws statusCode 429');
+  }
+
+  // Test E1: 404 preservation
+  {
+    provider._fetch = async () => createMockResponse({ status: 404 });
+    let errCaught = null;
+    try {
+      await provider.getTree('owner', 'repo', 'main');
+    } catch (err) {
+      errCaught = err;
+    }
+    assert(errCaught && errCaught.statusCode === 404, 'Test E1a: Commit 404 throws statusCode 404');
+
+    errCaught = null;
+    try {
+      await provider.getFileContent('owner', 'repo', 'missing.txt');
+    } catch (err) {
+      errCaught = err;
+    }
+    assert(errCaught && errCaught.statusCode === 404, 'Test E1b: File 404 throws statusCode 404');
+  }
+
+  // Test E2: 504 Timeout preservation
+  {
+    const timeoutProvider = new GitHubRepositoryProvider({ timeoutMs: 50 });
+    timeoutProvider._fetch = async () => {
+      const err = new Error('GitHub API request timed out after 50ms.');
+      err.statusCode = 504;
+      throw err;
+    };
+    let errCaught = null;
+    try {
+      await timeoutProvider.getTree('owner', 'repo', 'main');
+    } catch (err) {
+      errCaught = err;
+    }
+    assert(errCaught && errCaught.statusCode === 504, 'Test E2: Timeout throws statusCode 504');
+  }
+
+  // Test E3: 502 Network Error preservation
+  {
+    const netProvider = new GitHubRepositoryProvider();
+    netProvider._fetch = async () => {
+      const err = new Error('GitHub network error: fetch failed');
+      err.statusCode = 502;
+      throw err;
+    };
+    let errCaught = null;
+    try {
+      await netProvider.getTree('owner', 'repo', 'main');
+    } catch (err) {
+      errCaught = err;
+    }
+    assert(errCaught && errCaught.statusCode === 502, 'Test E3: Network error throws statusCode 502');
+  }
 
   console.log('\n======================================================');
   console.log(`  ALL ${passed}/${total} ANALYZER ENGINE TESTS PASSED!`);

@@ -25,7 +25,7 @@ class MockRepositoryProvider extends RepositoryProvider {
     };
   }
 
-  async getTree(owner, repo, branch = 'main') {
+  async getTree(owner, repo, branch = 'main', commitSha = null) {
     const key = `${owner}/${repo}`.toLowerCase();
     const repoData = this.repositories[key];
 
@@ -52,7 +52,7 @@ class MockRepositoryProvider extends RepositoryProvider {
     });
 
     return {
-      commitSha: repoData.commitSha,
+      commitSha: commitSha || repoData.commitSha,
       tree,
       truncated: false,
     };

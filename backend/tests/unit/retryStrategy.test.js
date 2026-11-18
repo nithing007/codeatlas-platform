@@ -65,6 +65,14 @@ describe('Phase 7B.2D Unit Tests: Retry Strategy & Idempotency', () => {
         expect(classified.category).toBe(expectedCat);
       }
     });
+
+    test('Phase 7D: classifies HTTP 403 access denied error as permanent PERMANENT_AUTH and non-retryable', () => {
+      const authError = Object.assign(new Error('Access to the requested GitHub repository was forbidden.'), { statusCode: 403, isAnalyzerError: true });
+      const classified = classifyError(authError);
+      expect(classified.retryable).toBe(false);
+      expect(classified.category).toBe(ERROR_CATEGORIES.PERMANENT_AUTH);
+      expect(classified.statusCode).toBe(403);
+    });
   });
 
   // -------------------------------------------------------------------------

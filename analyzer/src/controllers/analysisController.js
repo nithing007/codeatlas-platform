@@ -138,9 +138,9 @@ const analyze = async (req, res, next) => {
     const provider = new GitHubRepositoryProvider();
     const scanner = new RepositoryScanner(provider);
 
-    // The scanner fetches its own commitSha from GitHub to guarantee freshness.
-    // The caller-supplied commitSha is used for request correlation only.
-    const result = await scanner.scan(owner, repo, trimmedBranch);
+    // The scanner uses caller-supplied commitSha to guarantee snapshot consistency.
+    // Falls back to branch HEAD if commitSha is omitted.
+    const result = await scanner.scan(owner, repo, trimmedBranch, commitSha.trim());
 
     // Return the full analyzer result — the Backend persistence layer decides
     // what to store. We do not strip files[] or any other fields here.
@@ -149,6 +149,24 @@ const analyze = async (req, res, next) => {
     // Map known GitHub provider status codes to appropriate HTTP responses.
     // Do not expose stack traces, file paths, or secrets.
     const statusCode = err.statusCode;
+
+    if (statusCode === 403) {
+      return res.status(403).json({
+        error: {
+          code: 'ACCESS_DENIED',
+          message: 'Access to the requested GitHub repository or resource was denied.',
+        },
+      });
+    }
+
+    if (statusCode === 401) {
+      return res.status(401).json({
+        error: {
+          code: 'UNAUTHORIZED',
+          message: 'Authentication failed while accessing the GitHub repository.',
+        },
+      });
+    }
 
     if (statusCode === 404) {
       return res.status(404).json({

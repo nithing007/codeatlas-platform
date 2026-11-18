@@ -474,6 +474,11 @@ function createWorker(options = {}) {
       });
     } catch (err) {
       console.error(`[scanWorker:${workerId}] Error executing scan ${scan._id}:`, err.message);
+      try {
+        await getScanExecutionService().handleFailure(scan, err, { workerId });
+      } catch (recoveryErr) {
+        console.error(`[scanWorker:${workerId}] Secondary failure handling error:`, recoveryErr.message);
+      }
     } finally {
       await heartbeat.stop();
     }

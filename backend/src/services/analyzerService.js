@@ -138,6 +138,13 @@ const analyze = async ({ repository, branch, commitSha }) => {
     );
   }
 
+  if (response.status === 403) {
+    throw analyzerError(
+      'Access to the requested GitHub repository was forbidden.',
+      403
+    );
+  }
+
   if (response.status === 404) {
     throw analyzerError(
       'The requested repository or branch was not found on GitHub.',

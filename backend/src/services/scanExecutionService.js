@@ -503,6 +503,7 @@ const executeScan = async (scanId, options = {}) => {
 
 module.exports = {
   executeScan,
+  handleFailure,
   ANALYZER_VERSION,
   mapDependencies,
   mapScripts,

@@ -542,6 +542,58 @@ async function runTests() {
   }
 
   // -------------------------------------------------------------------------
+  // TEST 12D — Phase 7D: Scanner 403 error → 403 ACCESS_DENIED
+  // -------------------------------------------------------------------------
+  {
+    process.env.ANALYZER_INTERNAL_TOKEN = TEST_TOKEN;
+    const scannerPath = require.resolve('../src/scanner/repositoryScanner');
+    const configPath = require.resolve('../src/config');
+    const controllerPath = require.resolve('../src/controllers/analysisController');
+    const routerPath = require.resolve('../src/routes/analysisRoutes');
+    const authPath = require.resolve('../src/middleware/internalAuth');
+    const appPath = require.resolve('../src/app');
+
+    delete require.cache[configPath];
+    delete require.cache[controllerPath];
+    delete require.cache[routerPath];
+    delete require.cache[authPath];
+    delete require.cache[appPath];
+
+    const originalScanner = require.cache[scannerPath];
+    require.cache[scannerPath] = {
+      id: scannerPath, filename: scannerPath, loaded: true,
+      exports: class ForbiddenScanner {
+        async scan() {
+          const err = new Error('Access forbidden to private repository');
+          err.statusCode = 403;
+          throw err;
+        }
+      },
+    };
+
+    const app = require('../src/app');
+    if (originalScanner) require.cache[scannerPath] = originalScanner;
+    else delete require.cache[scannerPath];
+
+    const server = await new Promise((res, rej) => { const s = app.listen(0, '127.0.0.1', () => res(s)); s.on('error', rej); });
+    const port = server.address().port;
+
+    try {
+      const res = await request({
+        method: 'POST',
+        path: '/api/analyze',
+        port,
+        headers: { Authorization: `Bearer ${TEST_TOKEN}` },
+        body: VALID_REQUEST,
+      });
+      assert(res.status === 403, 'TEST 12D-a: Scanner 403 → HTTP 403');
+      assert(res.body.error?.code === 'ACCESS_DENIED', 'TEST 12D-b: Error code is ACCESS_DENIED');
+    } finally {
+      await new Promise((res) => server.close(res));
+    }
+  }
+
+  // -------------------------------------------------------------------------
   // TEST 13 — No secrets or tokens in health response
   // -------------------------------------------------------------------------
   {

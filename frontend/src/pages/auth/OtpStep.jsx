@@ -32,7 +32,7 @@ export function OtpStep({
   };
 
   return (
-    <form onSubmit={handleSubmit} noValidate aria-label="Verify code">
+    <form onSubmit={handleSubmit} noValidate aria-label="Verify code" className={styles.form}>
       <div className={styles.stepHeader}>
         <h2 className={styles.stepTitle}>Check your email</h2>
         <p className={styles.stepDesc}>
@@ -65,16 +65,18 @@ export function OtpStep({
         />
       </div>
 
-      <Button
-        type="submit"
-        variant="primary"
-        size="lg"
-        fullWidth
-        isLoading={isVerifying}
-        disabled={isVerifying || isResending || otp.length !== 6}
-      >
-        Verify and sign in
-      </Button>
+      <div className={styles.actionWrapper}>
+        <Button
+          type="submit"
+          variant="primary"
+          size="lg"
+          fullWidth
+          isLoading={isVerifying}
+          disabled={isVerifying || isResending || otp.length !== 6}
+        >
+          Verify and sign in
+        </Button>
+      </div>
 
       <div className={styles.otpActions}>
         <Button

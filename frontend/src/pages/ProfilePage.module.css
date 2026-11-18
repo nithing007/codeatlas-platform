@@ -1,0 +1,270 @@
+.main {
+  flex: 1;
+  padding: var(--spacing-xl) 0 4rem;
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
+}
+
+.container {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 0 var(--spacing-xl);
+}
+
+.header {
+  padding-bottom: 2rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.title {
+  font-size: var(--font-size-3xl);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: -0.02em;
+}
+
+.subtitle {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  margin-top: 0.25rem;
+}
+
+.noticeWrapper {
+  margin-top: 1.5rem;
+}
+
+.profileGrid {
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  gap: 2rem;
+  margin-top: 2.5rem;
+  align-items: start;
+}
+
+/* ─── Identity Card ──────────────────────────────────────────────────────── */
+.identityCard {
+  background-color: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 1.5rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.avatarWrapper {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 2px solid var(--color-accent-border);
+  box-shadow: 0 0 16px rgba(79, 121, 232, 0.2);
+}
+
+.avatarImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.avatarFallback {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, var(--color-accent), #2b4cad);
+  color: #fff;
+  font-size: 2.5rem;
+  font-weight: var(--font-weight-bold);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.identityDetails {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.userName {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+}
+
+.userEmail {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  word-break: break-all;
+}
+
+.roleTag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.7rem;
+  font-family: var(--font-mono);
+  font-weight: var(--font-weight-bold);
+  background: rgba(79, 121, 232, 0.15);
+  color: #79c0ff;
+  border: 1px solid var(--color-accent-border);
+  padding: 0.2rem 0.6rem;
+  border-radius: var(--radius-full);
+  margin-top: 0.25rem;
+}
+
+.roleDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--color-accent);
+}
+
+.identityMeta {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+  padding: 1.25rem 0;
+  text-align: left;
+}
+
+.metaRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: var(--font-size-xs);
+  gap: 0.5rem;
+}
+
+.metaLabel {
+  color: var(--color-text-muted);
+}
+
+.metaValue {
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-medium);
+}
+
+.statusVerified {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--color-success);
+  font-weight: var(--font-weight-medium);
+}
+
+.statusDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--color-success);
+  box-shadow: 0 0 6px var(--color-success);
+}
+
+/* ─── Details Section ────────────────────────────────────────────────────── */
+.detailsSection {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.card {
+  background-color: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  padding: 1.75rem 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.cardTitle {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+}
+
+.cardBadge {
+  font-size: 0.7rem;
+  font-family: var(--font-mono);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.fieldsGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+}
+
+.fieldItem {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.fieldLabel {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: var(--font-weight-medium);
+}
+
+.fieldValue {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-normal);
+}
+
+.mutedText {
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+.codePill {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  background: var(--color-bg-surface);
+  padding: 0.2rem 0.5rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  color: #79c0ff;
+}
+
+.authBadgeGoogle {
+  color: #79c0ff;
+}
+
+.authBadgeEmail {
+  color: #56d364;
+}
+
+.githubConnected {
+  color: #56d364;
+}
+
+/* ─── Responsive Queries ─────────────────────────────────────────────────── */
+@media (max-width: 860px) {
+  .profileGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .fieldsGrid {
+    grid-template-columns: 1fr;
+  }
+}

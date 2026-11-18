@@ -24,6 +24,7 @@ import { DashboardPage } from './pages/DashboardPage.jsx';
 import { RepositoriesPage } from './pages/RepositoriesPage.jsx';
 import { RepositoryDetailPage } from './pages/PlaceholderPage.jsx';
 import { AnalysisResultsPage } from './pages/AnalysisResultsPage.jsx';
+import { ProfilePage } from './pages/ProfilePage.jsx';
 import { NotFoundPage } from './pages/NotFoundPage.jsx';
 
 export default function App() {
@@ -60,6 +61,14 @@ export default function App() {
               element={
                 <ProtectedRoute>
                   <RepositoriesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute>
+                  <ProfilePage />
                 </ProtectedRoute>
               }
             />

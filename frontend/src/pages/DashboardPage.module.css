@@ -1,106 +1,516 @@
 .main {
   flex: 1;
-  padding: var(--spacing-2xl) var(--spacing-xl);
+  padding: var(--spacing-xl) 0 4rem;
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
 }
 
 .container {
-  max-width: 960px;
+  max-width: 1240px;
   margin: 0 auto;
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-2xl);
+  padding: 0 var(--spacing-xl);
 }
 
+/* ─── Header ─────────────────────────────────────────────────────────────── */
 .header {
   display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 1.5rem;
+  padding-bottom: 2rem;
+  border-bottom: 1px solid var(--color-border);
+  flex-wrap: wrap;
+}
+
+.headerLeft {
+  display: flex;
   flex-direction: column;
-  gap: var(--spacing-xs);
+  gap: 0.35rem;
 }
 
 .title {
   font-size: var(--font-size-3xl);
   font-weight: var(--font-weight-bold);
+  letter-spacing: -0.02em;
 }
 
 .subtitle {
-  font-size: var(--font-size-lg);
+  font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
 }
 
-.placeholder {
-  background-color: var(--color-bg-surface);
-  border: 1px dashed var(--color-border);
+.userHighlight {
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-medium);
+}
+
+.quickActions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.alertWrapper {
+  margin-top: 1.5rem;
+}
+
+.loadingContainer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 6rem 0;
+}
+
+/* ─── Empty State ────────────────────────────────────────────────────────── */
+.emptyCard {
+  background-color: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-xl);
-  padding: var(--spacing-3xl);
+  padding: 4rem 2rem;
+  text-align: center;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--spacing-md);
-  text-align: center;
+  gap: 1.25rem;
+  margin-top: 2rem;
+  box-shadow: var(--shadow-md);
 }
 
-.placeholderIcon {
-  font-size: 3rem;
+.emptyIcon {
+  font-size: 2.5rem;
   color: var(--color-accent);
-  opacity: 0.5;
 }
 
-.placeholderTitle {
+.emptyTitle {
   font-size: var(--font-size-xl);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-secondary);
+  font-weight: var(--font-weight-bold);
 }
 
-.placeholderDesc {
-  font-size: var(--font-size-base);
-  color: var(--color-text-muted);
-  max-width: 480px;
+.emptyDesc {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  max-width: 520px;
   line-height: var(--line-height-relaxed);
 }
 
-.actions {
-  display: flex;
-  justify-content: center;
+.emptyAction {
+  margin-top: 0.5rem;
 }
 
-.actionButton {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--spacing-xs);
-  background-color: var(--color-accent);
-  color: #ffffff;
-  font-size: var(--font-size-sm);
+/* ─── Metrics Grid ───────────────────────────────────────────────────────── */
+.metricsGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.25rem;
+  margin-top: 2rem;
+}
+
+.metricCard {
+  background-color: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  transition: border-color var(--transition-fast);
+}
+
+.metricCard:hover {
+  border-color: var(--color-border-subtle);
+}
+
+.metricLabel {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
   font-weight: var(--font-weight-medium);
-  padding: 0.5rem 1.25rem;
-  border-radius: var(--radius-md);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.metricValue {
+  font-size: 2rem;
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  line-height: 1.1;
+  font-family: var(--font-mono);
+}
+
+.metricActive {
+  color: var(--color-accent);
+}
+
+.metricAlert {
+  color: #ff7b72;
+}
+
+.metricSub {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  margin-top: 0.2rem;
+}
+
+/* ─── Main Content Grid ──────────────────────────────────────────────────── */
+.contentGrid {
+  display: grid;
+  grid-template-columns: 7fr 5fr;
+  gap: 2rem;
+  margin-top: 2.5rem;
+}
+
+.sectionTitleRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.25rem;
+}
+
+.sectionHeading {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: -0.01em;
+}
+
+.viewAllLink {
+  font-size: var(--font-size-xs);
+  color: var(--color-accent);
+  font-weight: var(--font-weight-medium);
+}
+
+.viewAllLink:hover {
+  color: var(--color-accent-hover);
+  text-decoration: underline;
+}
+
+/* ─── Repositories Overview Column ───────────────────────────────────────── */
+.overviewSection {
+  display: flex;
+  flex-direction: column;
+}
+
+.repoCardsList {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.repoOverviewCard {
+  background-color: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.repoOverviewCard:hover {
+  border-color: rgba(79, 121, 232, 0.35);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+}
+
+.repoCardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.repoName {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  margin-bottom: 0.2rem;
+}
+
+.repoName a {
+  color: var(--color-text-primary);
   text-decoration: none;
+}
+
+.repoName a:hover {
+  color: var(--color-accent);
+  text-decoration: underline;
+}
+
+.repoBranch {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.repoBranch code {
+  font-family: var(--font-mono);
+  color: var(--color-text-secondary);
+}
+
+.repoBadgeGroup {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.languageBadge {
+  font-size: 0.7rem;
+  font-family: var(--font-mono);
+  background-color: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
+  color: #79c0ff;
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--radius-sm);
+}
+
+.visibilityBadge {
+  font-size: 0.7rem;
+  font-family: var(--font-mono);
+  background-color: rgba(255, 255, 255, 0.05);
+  color: var(--color-text-muted);
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--radius-sm);
+  text-transform: lowercase;
+}
+
+.repoCardMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+.latestScanInfo {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.scanStatusTag {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: var(--font-weight-bold);
+  padding: 0.15rem 0.45rem;
+  border-radius: var(--radius-sm);
+  text-transform: uppercase;
+}
+
+.scanStatusTag[data-status="COMPLETED"] {
+  background: rgba(62, 207, 142, 0.12);
+  color: var(--color-success);
+  border: 1px solid rgba(62, 207, 142, 0.25);
+}
+
+.scanStatusTag[data-status="RUNNING"],
+.scanStatusTag[data-status="QUEUED"] {
+  background: rgba(79, 121, 232, 0.15);
+  color: var(--color-accent);
+  border: 1px solid var(--color-accent-border);
+}
+
+.scanStatusTag[data-status="FAILED"] {
+  background: rgba(240, 74, 88, 0.12);
+  color: var(--color-error);
+  border: 1px solid var(--color-error-border);
+}
+
+.scanMetaText {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--color-text-muted);
+}
+
+.noScansText {
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+.repoCardActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+/* ─── Recent Activity Column ─────────────────────────────────────────────── */
+.activitySection {
+  display: flex;
+  flex-direction: column;
+}
+
+.activityCount {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+}
+
+.emptyActivity {
+  background-color: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 2.5rem 1.5rem;
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.activityList {
+  background-color: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.activityItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--color-border);
+  gap: 1rem;
   transition: background-color var(--transition-fast);
 }
 
-.actionButton:hover {
-  background-color: var(--color-accent-hover);
-  text-decoration: none;
-  color: #ffffff;
+.activityItem:last-child {
+  border-bottom: none;
 }
 
-.sessionInfo {
-  margin-top: var(--spacing-md);
-  background-color: var(--color-bg-secondary);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  padding: var(--spacing-md) var(--spacing-lg);
+.activityItem:hover {
+  background-color: var(--color-bg-surface);
+}
+
+.activityLeft {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.statusDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.statusDot[data-status="COMPLETED"] {
+  background-color: var(--color-success);
+  box-shadow: 0 0 6px var(--color-success);
+}
+
+.statusDot[data-status="RUNNING"],
+.statusDot[data-status="QUEUED"] {
+  background-color: var(--color-accent);
+  box-shadow: 0 0 6px var(--color-accent);
+}
+
+.statusDot[data-status="FAILED"] {
+  background-color: var(--color-error);
+  box-shadow: 0 0 6px var(--color-error);
+}
+
+.activityInfo {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-xs);
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.activityRepo {
   font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
-  font-family: var(--font-mono);
-  text-align: left;
-  min-width: 260px;
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.label {
+.activityMeta {
+  font-size: var(--font-size-xs);
   color: var(--color-text-muted);
-  margin-right: var(--spacing-sm);
 }
 
+.activityMeta code {
+  font-family: var(--font-mono);
+  color: var(--color-text-secondary);
+}
+
+.activityRight {
+  flex-shrink: 0;
+}
+
+.viewResultLink {
+  text-decoration: none;
+}
+
+.findingsPill {
+  font-size: 0.7rem;
+  font-family: var(--font-mono);
+  background: rgba(79, 121, 232, 0.15);
+  color: #79c0ff;
+  border: 1px solid var(--color-accent-border);
+  padding: 0.2rem 0.5rem;
+  border-radius: var(--radius-sm);
+  transition: background-color var(--transition-fast);
+}
+
+.findingsPill:hover {
+  background: rgba(79, 121, 232, 0.25);
+}
+
+.activityStatusTag {
+  font-size: 0.65rem;
+  font-family: var(--font-mono);
+  padding: 0.2rem 0.5rem;
+  border-radius: var(--radius-sm);
+  text-transform: uppercase;
+}
+
+.activityStatusTag[data-status="RUNNING"],
+.activityStatusTag[data-status="QUEUED"] {
+  background: rgba(79, 121, 232, 0.12);
+  color: var(--color-accent);
+}
+
+.activityStatusTag[data-status="FAILED"] {
+  background: rgba(240, 74, 88, 0.12);
+  color: var(--color-error);
+}
+
+/* ─── Responsive Queries ─────────────────────────────────────────────────── */
+@media (max-width: 1024px) {
+  .contentGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .metricsGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .quickActions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 480px) {
+  .metricsGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .repoCardHeader {
+    flex-direction: column;
+  }
+
+  .repoCardActions {
+    justify-content: flex-start;
+  }
+}

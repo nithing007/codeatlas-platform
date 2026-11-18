@@ -18,7 +18,7 @@ export function EmailStep({ onSubmit, isLoading, error, defaultEmail = '' }) {
   };
 
   return (
-    <form onSubmit={handleSubmit} noValidate aria-label="Request verification code">
+    <form onSubmit={handleSubmit} noValidate aria-label="Request verification code" className={styles.form}>
       <div className={styles.stepHeader}>
         <h2 className={styles.stepTitle}>Sign in to CodeAtlas</h2>
         <p className={styles.stepDesc}>
@@ -44,16 +44,18 @@ export function EmailStep({ onSubmit, isLoading, error, defaultEmail = '' }) {
         />
       </div>
 
-      <Button
-        type="submit"
-        variant="primary"
-        size="lg"
-        fullWidth
-        isLoading={isLoading}
-        disabled={isLoading}
-      >
-        Send verification code
-      </Button>
+      <div className={styles.actionWrapper}>
+        <Button
+          type="submit"
+          variant="primary"
+          size="lg"
+          fullWidth
+          isLoading={isLoading}
+          disabled={isLoading}
+        >
+          Send verification code
+        </Button>
+      </div>
     </form>
   );
 }
